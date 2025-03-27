@@ -45,14 +45,31 @@
             background-color: #2ecc71;
             color: white;
             font-weight: bold;
-            padding: 12px 24px;
+            padding: 16px 32px;
             text-decoration: none;
-            border-radius: 4px;
-            margin-top: 20px;
-            transition: background-color 0.3s;
+            border-radius: 8px;
+            margin: 30px 0;
+            transition: all 0.3s;
+            font-size: 18px;
+            text-align: center;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            position: relative;
         }
         .download-btn:hover {
             background-color: #27ae60;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.25);
+        }
+        .download-btn:active {
+            transform: translateY(0);
+            box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+        }
+        .download-section {
+            text-align: center;
+            margin: 40px 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+            border-radius: 10px;
         }
         code {
             background-color: #f8f8f8;
@@ -133,7 +150,33 @@
         <li><code>build.gradle</code> - Project dependencies</li>
     </ul>
     
-    <a href="youtube_translator.apk" class="download-btn">Download APK</a>
+    <h2>Download and Installation</h2>
+    
+    <div class="feature">
+        <h3>Getting Started</h3>
+        <p>Follow these steps to install and run the YouTube Translator app on your Android device:</p>
+        <ol>
+            <li>Click the button below to download the APK file</li>
+            <li>Enable "Install from Unknown Sources" in your Android device settings
+                <ul>
+                    <li>On Android 8+: Settings > Apps > Special access > Install unknown apps</li>
+                    <li>On older Android: Settings > Security > Unknown sources</li>
+                </ul>
+            </li>
+            <li>Open the downloaded APK file to begin installation</li>
+            <li>Launch the app from your app drawer</li>
+            <li>Enter a YouTube URL and click "Play" to begin</li>
+        </ol>
+    </div>
+    
+    <div class="note">
+        <p><strong>Latest Update (March 27, 2025):</strong> Completely redesigned URL input field with Material Design components, better error handling, auto-focus, and automatic keyboard display.</p>
+    </div>
+    
+    <div class="download-section">
+        <a href="youtube_translator.apk" class="download-btn">⬇️ Download APK v1.1</a>
+        <p>File size: ~5MB • Android 5.0+ required</p>
+    </div>
     
     <h2>Future Improvements</h2>
     

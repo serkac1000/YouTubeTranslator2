@@ -1,1 +1,19 @@
-This is an updated APK file with enhanced URL input capabilities using Material Design TextInputLayout for better user experience.
+This APK contains the latest version of the YouTube Translator app with the following improvements:
+
+1. Completely redesigned URL input field using Material Design components:
+   - Replaced simple EditText with TextInputLayout and TextInputEditText
+   - Added better error handling with inline error messages
+   - Implemented auto-focus on app start and clear text button
+   - Made keyboard appear automatically when starting the app
+
+2. Enhanced video playback with ExoPlayer
+3. On-device English to Russian translation using ML Kit
+4. Clean, modern user interface
+
+To install:
+1. Download this APK to your Android device
+2. Enable "Install from Unknown Sources" in your device settings
+3. Open the downloaded APK file to install the app
+4. Launch the app and enter a YouTube URL
+
+Note: This is the latest version as of March 27, 2025.
