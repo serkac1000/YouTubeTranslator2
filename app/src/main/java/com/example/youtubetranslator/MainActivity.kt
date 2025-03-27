@@ -1,10 +1,13 @@
 package com.example.youtubetranslator
 
+import android.content.Context
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
+import android.view.MotionEvent
 import android.view.View
+import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
@@ -60,21 +63,58 @@ class MainActivity : AppCompatActivity() {
         subtitlesView = findViewById(R.id.subtitlesView)
         playButton = findViewById(R.id.playButton)
         
-        // Set up the YouTube link input field
-        youtubeLinkInput.apply {
-            isEnabled = true
-            isFocusableInTouchMode = true
-            isFocusable = true
+        // Setup input field with default URL (just for testing)
+        youtubeLinkInput.setText("")
+        youtubeLinkInput.hint = getString(R.string.enter_youtube_link)
+        
+        // Make sure the EditText is properly configured for input
+        youtubeLinkInput.isEnabled = true
+        youtubeLinkInput.isClickable = true
+        youtubeLinkInput.isFocusable = true
+        youtubeLinkInput.isFocusableInTouchMode = true
+        
+        // Set a click listener to ensure the keyboard shows up
+        youtubeLinkInput.setOnClickListener {
+            // Request focus and show keyboard
+            youtubeLinkInput.requestFocus()
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.showSoftInput(youtubeLinkInput, InputMethodManager.SHOW_IMPLICIT)
+        }
+        
+        // Also add a touch listener for additional coverage
+        youtubeLinkInput.setOnTouchListener { v, event ->
+            // Show keyboard
+            v.performClick() // Call the click listener too
+            youtubeLinkInput.requestFocus()
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.showSoftInput(youtubeLinkInput, InputMethodManager.SHOW_IMPLICIT)
+            false // Return false to indicate that we haven't consumed the event
+        }
+        
+        // Set up a text change listener
+        youtubeLinkInput.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {
+                // Nothing to do here
+            }
             
-            addTextChangedListener(object : TextWatcher {
-                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-                
-                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-                
-                override fun afterTextChanged(s: Editable?) {
-                    // You can add validation logic here if needed
-                }
-            })
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                // Log the text change for debugging
+                Log.d("YouTubeTranslator", "Text changed: ${s.toString()}")
+            }
+            
+            override fun afterTextChanged(s: Editable?) {
+                // Nothing special needed here
+            }
+        })
+        
+        // Log that the app has started and input field is initialized
+        Log.d("YouTubeTranslator", "App started, input field initialized")
+        
+        // Request focus on the input field when the activity starts
+        youtubeLinkInput.post {
+            youtubeLinkInput.requestFocus()
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.showSoftInput(youtubeLinkInput, InputMethodManager.SHOW_IMPLICIT)
         }
         
         // Initialize ExoPlayer

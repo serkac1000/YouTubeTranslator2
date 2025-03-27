@@ -12,22 +12,26 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginBottom="8dp">
+        android:layout_marginBottom="16dp">
 
         <EditText
             android:id="@+id/youtubeLinkInput"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="48dp"
             android:layout_weight="1"
             android:hint="@string/enter_youtube_link"
             android:inputType="textUri"
             android:imeOptions="actionDone"
-            android:padding="12dp"
             android:background="@drawable/edit_background"
-            android:focusable="true"
-            android:focusableInTouchMode="true"
+            android:textSize="16sp"
+            android:maxLines="1"
+            android:singleLine="true"
+            android:clickable="true"
+            android:longClickable="true"
+            android:textIsSelectable="true"
             android:textColorHint="#888888"
-            android:textSize="16sp" />
+            android:cursorVisible="true"
+            android:textCursorDrawable="@null" />
 
         <Button
             android:id="@+id/playButton"
