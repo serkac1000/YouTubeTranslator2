@@ -14,24 +14,24 @@
         android:orientation="horizontal"
         android:layout_marginBottom="16dp">
 
-        <EditText
-            android:id="@+id/youtubeLinkInput"
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/youtubeLinkLayout"
             android:layout_width="0dp"
-            android:layout_height="48dp"
+            android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:hint="@string/enter_youtube_link"
-            android:inputType="textUri"
-            android:imeOptions="actionDone"
-            android:background="@drawable/edit_background"
-            android:textSize="16sp"
-            android:maxLines="1"
-            android:singleLine="true"
-            android:clickable="true"
-            android:longClickable="true"
-            android:textIsSelectable="true"
-            android:textColorHint="#888888"
-            android:cursorVisible="true"
-            android:textCursorDrawable="@null" />
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/youtubeLinkInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/enter_youtube_link"
+                android:inputType="textUri"
+                android:imeOptions="actionDone"
+                android:textSize="16sp"
+                android:maxLines="1"
+                android:singleLine="true" />
+        </com.google.android.material.textfield.TextInputLayout>
 
         <Button
             android:id="@+id/playButton"

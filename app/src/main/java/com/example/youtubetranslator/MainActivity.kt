@@ -9,7 +9,8 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
-import android.widget.EditText
+import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -35,7 +36,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var player: ExoPlayer
     private lateinit var translator: Translator
     private lateinit var playerView: PlayerView
-    private lateinit var youtubeLinkInput: EditText
+    private lateinit var youtubeLinkInput: TextInputEditText
+    private lateinit var youtubeLinkLayout: TextInputLayout
     private lateinit var subtitlesView: TextView
     private lateinit var playButton: Button
     
@@ -59,13 +61,22 @@ class MainActivity : AppCompatActivity() {
         
         // Initialize views
         playerView = findViewById(R.id.videoPlayer)
+        youtubeLinkLayout = findViewById(R.id.youtubeLinkLayout)
         youtubeLinkInput = findViewById(R.id.youtubeLinkInput)
         subtitlesView = findViewById(R.id.subtitlesView)
         playButton = findViewById(R.id.playButton)
         
-        // Setup input field with default URL (just for testing)
+        // Setup input field with better user experience
         youtubeLinkInput.setText("")
-        youtubeLinkInput.hint = getString(R.string.enter_youtube_link)
+        
+        // Configure the TextInputLayout for better UX
+        youtubeLinkLayout.hint = getString(R.string.enter_youtube_link)
+        youtubeLinkLayout.isHintEnabled = true
+        youtubeLinkLayout.isErrorEnabled = true
+        youtubeLinkLayout.boxBackgroundMode = TextInputLayout.BOX_BACKGROUND_OUTLINE
+        
+        // Configure TextInputLayout end icon to clear text
+        youtubeLinkLayout.endIconMode = TextInputLayout.END_ICON_CLEAR_TEXT
         
         // Make sure the EditText is properly configured for input
         youtubeLinkInput.isEnabled = true
@@ -162,17 +173,24 @@ class MainActivity : AppCompatActivity() {
                 ).show()
             }
         
-        // Set up play button click listener
+        // Set up play button click listener with validation
         playButton.setOnClickListener {
             val link = youtubeLinkInput.text.toString().trim()
-            if (link.isNotEmpty()) {
-                if (link.contains("youtube.com") || link.contains("youtu.be")) {
-                    playVideo(link)
-                } else {
-                    Toast.makeText(this, "Please enter a valid YouTube link", Toast.LENGTH_SHORT).show()
-                }
+            
+            // Clear any previous errors
+            youtubeLinkLayout.error = null
+            
+            if (link.isEmpty()) {
+                // Show error in the TextInputLayout instead of Toast
+                youtubeLinkLayout.error = "Please enter a YouTube link"
+                youtubeLinkInput.requestFocus()
+            } else if (!link.contains("youtube.com") && !link.contains("youtu.be")) {
+                // Show error for invalid YouTube link
+                youtubeLinkLayout.error = "Please enter a valid YouTube link"
+                youtubeLinkInput.requestFocus()
             } else {
-                Toast.makeText(this, "Please enter a YouTube link", Toast.LENGTH_SHORT).show()
+                // Valid link, proceed to play
+                playVideo(link)
             }
         }
     }
@@ -181,7 +199,8 @@ class MainActivity : AppCompatActivity() {
         // Extract video ID from YouTube link
         val videoId = extractVideoId(link)
         if (videoId.isEmpty()) {
-            Toast.makeText(this, "Could not extract video ID from link", Toast.LENGTH_SHORT).show()
+            youtubeLinkLayout.error = "Could not extract video ID from link. Please check the format."
+            youtubeLinkInput.requestFocus()
             return
         }
         
