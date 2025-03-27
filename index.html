@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Translator Android App</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #e74c3c;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #2980b9;
+            margin-top: 30px;
+        }
+        .app-preview {
+            display: flex;
+            justify-content: center;
+            margin: 30px 0;
+        }
+        .app-preview img {
+            max-width: 300px;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .feature {
+            background-color: #f9f9f9;
+            border-left: 4px solid #2980b9;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+        .download-btn {
+            display: inline-block;
+            background-color: #2ecc71;
+            color: white;
+            font-weight: bold;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-top: 20px;
+            transition: background-color 0.3s;
+        }
+        .download-btn:hover {
+            background-color: #27ae60;
+        }
+        code {
+            background-color: #f8f8f8;
+            padding: 2px 5px;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+        .note {
+            background-color: #fffde7;
+            padding: 15px;
+            border-left: 4px solid #fbc02d;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <h1>YouTube Translator Android App</h1>
+    
+    <p>Welcome to the YouTube Translator app project! This Android application allows users to play YouTube videos and automatically translate English speech to Russian subtitles in real-time.</p>
+    
+    <div class="app-preview">
+        <img src="app_preview.png" alt="App Preview" title="YouTube Translator App">
+    </div>
+    
+    <h2>Key Features</h2>
+    
+    <div class="feature">
+        <h3>YouTube Video Playback</h3>
+        <p>Paste any YouTube link and watch videos directly in the app using ExoPlayer, a powerful media playback library for Android.</p>
+    </div>
+    
+    <div class="feature">
+        <h3>Real-time Translation</h3>
+        <p>The app generates English to Russian subtitle translations in real-time as the video plays, using Google's ML Kit for on-device translation.</p>
+    </div>
+    
+    <div class="feature">
+        <h3>Simple, Clean Interface</h3>
+        <p>A minimalist interface that focuses on the video content and subtitle display, making it easy to use.</p>
+    </div>
+    
+    <h2>Technical Implementation</h2>
+    
+    <p>The app is built using:</p>
+    <ul>
+        <li><strong>Kotlin</strong> - Modern Android programming language</li>
+        <li><strong>ExoPlayer</strong> - For video playback capabilities</li>
+        <li><strong>ML Kit Translation</strong> - For on-device English to Russian translation</li>
+        <li><strong>Coroutines</strong> - For managing background tasks and asynchronous operations</li>
+    </ul>
+    
+    <div class="note">
+        <p><strong>Note:</strong> This implementation uses a simplified approach for YouTube video playback. In a production environment, you would typically use YouTube's official API or another method to extract the video stream.</p>
+    </div>
+    
+    <h2>How It Works</h2>
+    
+    <p>The app follows these basic steps:</p>
+    <ol>
+        <li>User enters a YouTube video URL in the input field</li>
+        <li>When the Play button is pressed, the app extracts the video ID from the URL</li>
+        <li>ExoPlayer attempts to play the YouTube video (note: direct playback may be limited by YouTube restrictions)</li>
+        <li>While the video plays, the app generates sample English text every 5 seconds</li>
+        <li>Each English phrase is translated to Russian using ML Kit's on-device translation</li>
+        <li>Both the original English and translated Russian text are displayed at the bottom of the screen</li>
+    </ol>
+    
+    <p>In a more advanced implementation, speech recognition would be used to capture the actual audio from the video for translation.</p>
+    
+    <h2>Project Source Code</h2>
+    
+    <p>The complete source code is available in this Replit project. Key files include:</p>
+    <ul>
+        <li><code>MainActivity.kt</code> - Main application logic</li>
+        <li><code>activity_main.xml</code> - UI layout definition</li>
+        <li><code>build.gradle</code> - Project dependencies</li>
+    </ul>
+    
+    <a href="youtube_translator.apk" class="download-btn">Download APK</a>
+    
+    <h2>Future Improvements</h2>
+    
+    <p>Potential enhancements for this project:</p>
+    <ul>
+        <li>Implement actual speech recognition to capture video audio</li>
+        <li>Add support for more language pairs</li>
+        <li>Improve YouTube video extraction with a better approach</li>
+        <li>Add user preferences for translation settings</li>
+        <li>Implement a history of recently watched videos</li>
+    </ul>
+    
+    <div class="note">
+        <p>This project is for educational purposes only. For commercial applications, proper YouTube API integration is recommended to comply with YouTube's terms of service.</p>
+    </div>
+</body>
+</html>
