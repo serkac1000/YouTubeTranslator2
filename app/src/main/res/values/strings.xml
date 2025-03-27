@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">YouTube Translator</string>
+    <string name="enter_youtube_link">Enter YouTube link here</string>
+    <string name="play">Play</string>
+</resources>
