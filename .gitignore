@@ -1,0 +1,40 @@
+# Gradle files
+.gradle/
+build/
+
+# Local configuration file
+local.properties
+
+# Android Studio generated files
+.idea/
+*.iml
+.externalNativeBuild
+.cxx
+
+# Node.js dependencies
+node_modules/
+package-lock.json
+
+# Generated files
+bin/
+gen/
+out/
+captures/
+
+# Keystore files
+*.jks
+*.keystore
+
+# macOS files
+.DS_Store
+
+# Log files
+*.log
+
+# Android Studio Profiler
+*.hprof
+
+# Replit specific
+.replit
+replit.nix
+.upm/
