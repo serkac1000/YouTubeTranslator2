@@ -60,6 +60,23 @@ class MainActivity : AppCompatActivity() {
         subtitlesView = findViewById(R.id.subtitlesView)
         playButton = findViewById(R.id.playButton)
         
+        // Set up the YouTube link input field
+        youtubeLinkInput.apply {
+            isEnabled = true
+            isFocusableInTouchMode = true
+            isFocusable = true
+            
+            addTextChangedListener(object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                
+                override fun afterTextChanged(s: Editable?) {
+                    // You can add validation logic here if needed
+                }
+            })
+        }
+        
         // Initialize ExoPlayer
         player = ExoPlayer.Builder(this).build()
         playerView.player = player
