@@ -4,6 +4,7 @@ plugins {
 }
 
 android {
+    namespace "com.example.youtubetranslator"
     compileSdk 33
 
     defaultConfig {
