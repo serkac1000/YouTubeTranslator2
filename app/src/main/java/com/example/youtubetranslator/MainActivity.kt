@@ -4,10 +4,10 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.media.AudioFormat
-import android.media.AudioRecord
-import android.media.MediaRecorder
 import android.os.Bundle
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
@@ -40,10 +40,6 @@ import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.nl.translate.Translation
 import com.google.mlkit.nl.translate.Translator
 import com.google.mlkit.nl.translate.TranslatorOptions
-import com.google.mlkit.speech.SpeechRecognition
-import com.google.mlkit.speech.SpeechRecognitionResult
-import com.google.mlkit.speech.SpeechRecognizer
-import com.google.mlkit.speech.RecognitionConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -443,18 +439,136 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun initSpeechRecognizer() {
-        // Create a speech recognizer for English
-        val recognizerOptions = RecognitionConfig.Builder()
-            .setLanguageCode("en-US")
-            .build()
-            
-        speechRecognizer = SpeechRecognition.getClient(recognizerOptions)
+        // Check if device supports speech recognition
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            Log.e("YouTubeTranslator", "Speech recognition is not available on this device")
+            Toast.makeText(
+                this,
+                "Распознавание речи недоступно на этом устройстве. Используются образцы субтитров.", // "Speech recognition is not available on this device. Using sample subtitles." in Russian
+                Toast.LENGTH_LONG
+            ).show()
+            return
+        }
+        
+        // Create Android's built-in speech recognizer
+        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this)
+        
+        // Set up recognition listener
+        speechRecognizer?.setRecognitionListener(object : RecognitionListener {
+            override fun onReadyForSpeech(params: Bundle?) {
+                Log.d("YouTubeTranslator", "Ready for speech")
+            }
+
+            override fun onBeginningOfSpeech() {
+                Log.d("YouTubeTranslator", "Beginning of speech")
+            }
+
+            override fun onRmsChanged(rmsdB: Float) {
+                // Microphone sound level changed (not essential to log)
+            }
+
+            override fun onBufferReceived(buffer: ByteArray?) {
+                Log.d("YouTubeTranslator", "Buffer received")
+            }
+
+            override fun onEndOfSpeech() {
+                Log.d("YouTubeTranslator", "End of speech")
+            }
+
+            override fun onError(error: Int) {
+                val errorMessage = when (error) {
+                    SpeechRecognizer.ERROR_AUDIO -> "Audio recording error"
+                    SpeechRecognizer.ERROR_CLIENT -> "Client side error"
+                    SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Insufficient permissions"
+                    SpeechRecognizer.ERROR_NETWORK -> "Network error"
+                    SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network timeout"
+                    SpeechRecognizer.ERROR_NO_MATCH -> "No match found"
+                    SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "RecognitionService busy"
+                    SpeechRecognizer.ERROR_SERVER -> "Server error"
+                    SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No speech input"
+                    else -> "Unknown error"
+                }
+                Log.e("YouTubeTranslator", "Error in speech recognition: $errorMessage")
+                
+                // If there's an error, use a fallback phrase
+                val fallbackText = sampleEnglishPhrases[(0..9).random()]
+                translateAndDisplaySubtitle(fallbackText)
+                
+                // Restart recognition after a brief delay if still active
+                if (isRecognitionActive) {
+                    startListening()
+                }
+            }
+
+            override fun onResults(results: Bundle?) {
+                val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                if (!matches.isNullOrEmpty()) {
+                    val recognizedText = matches[0]
+                    Log.d("YouTubeTranslator", "Speech recognized: $recognizedText")
+                    
+                    // Add the recognized text to our results list
+                    recognitionResults.add(recognizedText)
+                    
+                    // Keep only the last 10 results to avoid memory issues
+                    if (recognitionResults.size > 10) {
+                        recognitionResults.removeAt(0)
+                    }
+                    
+                    // Translate and display the recognized text
+                    translateAndDisplaySubtitle(recognizedText)
+                } else {
+                    // No speech detected, use a fallback phrase
+                    val fallbackText = sampleEnglishPhrases[(0..9).random()]
+                    translateAndDisplaySubtitle(fallbackText)
+                }
+                
+                // Restart listening after a brief delay if still active
+                if (isRecognitionActive) {
+                    startListening()
+                }
+            }
+
+            override fun onPartialResults(partialResults: Bundle?) {
+                val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                if (!matches.isNullOrEmpty()) {
+                    val recognizedText = matches[0]
+                    Log.d("YouTubeTranslator", "Partial speech recognized: $recognizedText")
+                    
+                    // For continuous update, we can translate and display partial results too
+                    translateAndDisplaySubtitle(recognizedText)
+                }
+            }
+
+            override fun onEvent(eventType: Int, params: Bundle?) {
+                Log.d("YouTubeTranslator", "Speech recognition event: $eventType")
+            }
+        })
         
         Log.d("YouTubeTranslator", "Speech recognizer initialized")
     }
     
+    private fun startListening() {
+        try {
+            val recognizerIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US")
+                putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
+                putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 3000)
+                putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 3000)
+            }
+            
+            speechRecognizer?.startListening(recognizerIntent)
+        } catch (e: Exception) {
+            Log.e("YouTubeTranslator", "Error starting speech recognition", e)
+            // If starting speech recognition fails, use a fallback phrase
+            val fallbackText = sampleEnglishPhrases[(0..9).random()]
+            translateAndDisplaySubtitle(fallbackText)
+        }
+    }
+    
     private fun startSpeechRecognition() {
-        // Make sure we have permission and the recognizer is initialized
+        // Make sure we have permission
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             Log.w("YouTubeTranslator", "Cannot start speech recognition: Missing RECORD_AUDIO permission")
             return
@@ -466,53 +580,30 @@ class MainActivity : AppCompatActivity() {
         
         isRecognitionActive = true
         
-        // Start a coroutine to periodically process audio and get speech recognition results
+        // Start listening
+        startListening()
+        
+        // Also start a fallback coroutine that will supply sample phrases 
+        // if speech recognition doesn't work properly
         subtitleJob = CoroutineScope(Dispatchers.Main).launch {
             while (isActive && youtubeVideoPlaying && isRecognitionActive) {
-                try {
-                    // Process speech recognition
-                    processSpeechRecognition()
-                    
-                    // Wait a moment before the next recognition attempt
-                    delay(3000)
-                } catch (e: Exception) {
-                    Log.e("YouTubeTranslator", "Error in speech recognition", e)
-                    // If speech recognition fails, fall back to sample phrases
+                delay(5000) // Wait 5 seconds
+                
+                // Only use fallback if no recent recognition results
+                if (recognitionResults.isEmpty()) {
                     val fallbackText = sampleEnglishPhrases[(0..9).random()]
+                    Log.d("YouTubeTranslator", "Using fallback subtitle: $fallbackText")
                     translateAndDisplaySubtitle(fallbackText)
-                    delay(3000)
                 }
             }
-        }
-    }
-    
-    private suspend fun processSpeechRecognition() {
-        // In a real implementation, we would capture audio from the device microphone
-        // or from the media being played in the WebView.
-        // Since we can't directly access YouTube audio stream, this is a simplified implementation
-        
-        // For testing, just use a random sample phrase as if it was recognized
-        val recognizedText = sampleEnglishPhrases[(0..9).random()]
-        
-        // Add the recognized text to our results list
-        if (recognizedText.isNotEmpty()) {
-            recognitionResults.add(recognizedText)
-            
-            // Keep only the last 10 results to avoid memory issues
-            if (recognitionResults.size > 10) {
-                recognitionResults.removeAt(0)
-            }
-            
-            // Translate and display the latest recognized text
-            translateAndDisplaySubtitle(recognizedText)
         }
     }
     
     private fun stopSpeechRecognition() {
         isRecognitionActive = false
         
-        // In a real implementation with ML Kit, we would stop the speech recognizer here
-        // speechRecognizer?.close()
+        // Stop the Android speech recognizer
+        speechRecognizer?.cancel()
         
         // Clear recognition results
         recognitionResults.clear()
