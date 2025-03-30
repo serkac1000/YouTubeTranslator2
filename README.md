@@ -1,21 +1,24 @@
 # YouTube Translator Android App
 
-This project is an Android application that plays YouTube videos and provides real-time English-to-Russian subtitle translation.
+This project is an Android application that plays YouTube videos and provides real-time English-to-Russian subtitle translation with advanced buffering resilience and continuous subtitle display.
 
 ## Project Overview
 
 The YouTube Translator app allows users to:
-- Enter a YouTube video URL
-- Play the video within the app
+- Enter a YouTube video URL (saved between app sessions)
+- Play the video within the app with advanced buffering handling
 - View automatically generated English-to-Russian translations as subtitles
+- Experience continuous subtitle display even during buffering
+- Benefit from automatic quality adjustments and buffer recovery
 
 ## Technical Implementation
 
 The app is built using:
 - Kotlin programming language
-- ExoPlayer for video playback
+- YouTube iframe API in WebView for video playback
 - ML Kit for on-device translation
 - Coroutines for asynchronous operations
+- JavaScript evaluations for advanced buffering detection
 
 ## Project Structure
 
@@ -47,6 +50,15 @@ This repository also includes a web-based documentation page that:
 To view the documentation:
 1. Run `node server.js`
 2. Open a browser and navigate to `http://localhost:5000`
+
+## Key Features
+
+- **Enhanced Buffering Handling**: Specially designed buffering detection and recovery system
+- **Continuous Subtitles**: Subtitles remain active even during video buffering
+- **Smart Quality Adjustments**: Automatic quality settings to optimize playback
+- **Visual Buffering Indicators**: Special "⟳" symbol shows when buffering is active
+- **URL Persistence**: Previously entered URLs are saved between app sessions
+- **YouTube-like Subtitle Display**: Shows the latest 3 lines for better readability
 
 ## Limitations
 
