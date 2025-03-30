@@ -98,7 +98,7 @@ git add .
 echo "Added files to git staging."
 
 # Commit changes
-COMMIT_MSG="Added pause and stop buttons with JavaScript controls for better video management"
+COMMIT_MSG="Reverted custom pause and stop buttons to fix subtitle regression"
 git commit -m "$COMMIT_MSG"
 echo "Committed changes with message: $COMMIT_MSG"
 
