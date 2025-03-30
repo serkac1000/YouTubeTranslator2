@@ -76,6 +76,10 @@ class MainActivity : AppCompatActivity() {
     private val MAX_SUBTITLE_LINES = 3
     private val PERMISSION_REQUEST_RECORD_AUDIO = 101
     
+    // Constants for SharedPreferences
+    private val PREFS_NAME = "YouTubeTranslatorPrefs"
+    private val KEY_LAST_URL = "lastUsedUrl"
+    
     // Keep sample phrases as fallback when speech recognition is not available
     private val sampleEnglishPhrases = arrayOf(
         "Welcome to this video",
@@ -104,8 +108,8 @@ class MainActivity : AppCompatActivity() {
         // Check for audio recording permission
         checkAudioRecordingPermission()
         
-        // Setup input field with better user experience
-        youtubeLinkInput.setText("")
+        // Load previously saved URL if available
+        loadSavedUrl()
         
         // Configure the TextInputLayout for better UX
         youtubeLinkLayout.hint = getString(R.string.enter_youtube_link)
@@ -222,6 +226,9 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun playVideo(link: String) {
+        // Save the link for future use
+        saveUrl(link)
+        
         // Extract video ID from YouTube link
         val videoId = extractVideoId(link)
         
@@ -437,6 +444,33 @@ class MainActivity : AppCompatActivity() {
     
     // Original subtitle generation method replaced with speech recognition implementation
     
+    /**
+     * Save URL to SharedPreferences for future use
+     */
+    private fun saveUrl(url: String) {
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val editor = prefs.edit()
+        editor.putString(KEY_LAST_URL, url)
+        editor.apply()
+        Log.d("YouTubeTranslator", "Saved URL to preferences: $url")
+    }
+    
+    /**
+     * Load previously saved URL from SharedPreferences
+     */
+    private fun loadSavedUrl() {
+        val prefs = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val savedUrl = prefs.getString(KEY_LAST_URL, "")
+        
+        savedUrl?.let {
+            if (it.isNotEmpty()) {
+                // Set the saved URL to the input field
+                youtubeLinkInput.setText(it)
+                Log.d("YouTubeTranslator", "Loaded saved URL from preferences: $it")
+            }
+        }
+    }
+    
     private fun translateAndDisplaySubtitle(englishText: String) {
         // Don't translate the same text repeatedly to avoid flicker
         if (englishText == lastSubtitleText && subtitleDisplayActive) {
@@ -451,8 +485,20 @@ class MainActivity : AppCompatActivity() {
         
         translator.translate(englishText)
             .addOnSuccessListener { translatedText ->
-                // Add this new subtitle to our recent list
-                recentSubtitles.add(translatedText)
+                // Check if translation contains "????" characters (corrupted translation)
+                if (translatedText.contains("????")) {
+                    Log.e("YouTubeTranslator", "Corrupted translation detected: $translatedText")
+                    
+                    // Reset the translator to fix the issue
+                    resetTranslator()
+                    
+                    // Use a fallback Russian text
+                    val fallbackRussian = "Продолжение видео..." // "Video continues..." in Russian
+                    recentSubtitles.add(fallbackRussian)
+                } else {
+                    // Add valid translation to our recent list
+                    recentSubtitles.add(translatedText)
+                }
                 
                 // Keep only the most recent subtitles (maximum 3 lines)
                 while (recentSubtitles.size > MAX_SUBTITLE_LINES) {
@@ -534,6 +580,33 @@ class MainActivity : AppCompatActivity() {
             }
             else -> super.onOptionsItemSelected(item)
         }
+    }
+    
+    /**
+     * Reset the translator instance when it shows corrupted output
+     * This recreates the translator with fresh options
+     */
+    private fun resetTranslator() {
+        Log.d("YouTubeTranslator", "Resetting translator due to corruption...")
+        
+        // Close the current translator instance
+        translator.close()
+        
+        // Create a new translator instance
+        val options = TranslatorOptions.Builder()
+            .setSourceLanguage(TranslateLanguage.ENGLISH)
+            .setTargetLanguage(TranslateLanguage.RUSSIAN)
+            .build()
+        translator = Translation.getClient(options)
+        
+        // Make sure the model is downloaded
+        translator.downloadModelIfNeeded()
+            .addOnSuccessListener {
+                Log.d("YouTubeTranslator", "Translation model redownloaded successfully")
+            }
+            .addOnFailureListener { exception ->
+                Log.e("YouTubeTranslator", "Error redownloading translation model", exception)
+            }
     }
     
     override fun onDestroy() {
