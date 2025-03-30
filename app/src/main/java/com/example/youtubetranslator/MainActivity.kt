@@ -69,6 +69,8 @@ class MainActivity : AppCompatActivity() {
     private val recognitionResults = mutableListOf<String>()
     private var lastSubtitleText = ""
     private var subtitleDisplayActive = false
+    private val recentSubtitles = mutableListOf<String>()
+    private val MAX_SUBTITLE_LINES = 2
     private val PERMISSION_REQUEST_RECORD_AUDIO = 101
     
     // Keep sample phrases as fallback when speech recognition is not available
@@ -351,10 +353,21 @@ class MainActivity : AppCompatActivity() {
         
         translator.translate(englishText)
             .addOnSuccessListener { translatedText ->
-                // Show only Russian subtitles
-                subtitlesView.text = translatedText
+                // Add this new subtitle to our recent list
+                recentSubtitles.add(translatedText)
                 
-                // Schedule this subtitle to remain visible for at least 3 seconds
+                // Keep only the most recent subtitles (maximum 2 lines)
+                while (recentSubtitles.size > MAX_SUBTITLE_LINES) {
+                    recentSubtitles.removeAt(0)
+                }
+                
+                // Join the recent subtitles with newlines to create a YouTube-like effect
+                val displayText = recentSubtitles.joinToString("\n")
+                
+                // Show only Russian subtitles
+                subtitlesView.text = displayText
+                
+                // Schedule this subtitle set to remain visible for at least 3 seconds
                 CoroutineScope(Dispatchers.Main).launch {
                     delay(3000)  // Keep subtitle visible for 3 seconds minimum
                 }
@@ -691,5 +704,6 @@ class MainActivity : AppCompatActivity() {
         subtitlesView.text = ""
         subtitleDisplayActive = false
         lastSubtitleText = ""
+        recentSubtitles.clear()
     }
 }

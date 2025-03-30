@@ -60,6 +60,8 @@
         android:background="#80000000"
         android:gravity="center"
         android:minHeight="80dp"
+        android:maxLines="2"
+        android:ellipsize="end"
         android:padding="12dp"
         android:textColor="#FFFFFF"
         android:textSize="16sp" />
