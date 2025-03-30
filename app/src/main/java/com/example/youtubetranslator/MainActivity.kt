@@ -270,19 +270,40 @@ class MainActivity : AppCompatActivity() {
                 
                 // Additional settings for better stability
                 cacheMode = WebSettings.LOAD_DEFAULT  // Use cache when possible for smoother playback
-                setRenderPriority(WebSettings.RenderPriority.HIGH)  // High rendering priority
+                
+                // setRenderPriority is deprecated in newer Android versions
+                @Suppress("DEPRECATION")
+                try {
+                    setRenderPriority(WebSettings.RenderPriority.HIGH)  // High rendering priority
+                } catch (e: Exception) {
+                    Log.w("YouTubeTranslator", "setRenderPriority not available", e)
+                }
+                
                 mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW  // Allow mixed content
                 allowContentAccess = true  // Allow content access
                 
                 // Performance optimizations
-                setEnableSmoothTransition(true)
+                // Another deprecated setting but useful on older devices
+                @Suppress("DEPRECATION")
+                try {
+                    setEnableSmoothTransition(true)
+                } catch (e: Exception) {
+                    Log.w("YouTubeTranslator", "setEnableSmoothTransition not available", e)
+                }
+                
                 allowFileAccess = true
                 domStorageEnabled = true
                 databaseEnabled = true
                 
                 // Network optimizations
-                setAppCacheEnabled(true)
-                setAppCachePath(cacheDir.absolutePath)
+                // AppCache is deprecated but still used in some devices
+                @Suppress("DEPRECATION")
+                try {
+                    setAppCacheEnabled(true)
+                    setAppCachePath(cacheDir.absolutePath)
+                } catch (e: Exception) {
+                    Log.w("YouTubeTranslator", "App cache setting not available", e)
+                }
                 
                 // DNS prefetch optimization
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
