@@ -6,7 +6,7 @@ This project is an Android application that plays YouTube videos and provides re
 
 The YouTube Translator app allows users to:
 - Enter a YouTube video URL (saved between app sessions)
-- Play the video within the app with advanced buffering handling
+- Play, pause, and stop videos with convenient control buttons
 - View automatically generated English-to-Russian translations as subtitles
 - Experience continuous subtitle display even during buffering
 - Benefit from automatic quality adjustments and buffer recovery
@@ -53,6 +53,7 @@ To view the documentation:
 
 ## Key Features
 
+- **Complete Playback Controls**: Play, pause, and stop buttons for full video control
 - **Enhanced Buffering Handling**: Specially designed buffering detection and recovery system
 - **Continuous Subtitles**: Subtitles remain active even during video buffering
 - **Smart Quality Adjustments**: Automatic quality settings to optimize playback

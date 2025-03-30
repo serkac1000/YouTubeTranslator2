@@ -60,6 +60,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var youtubeLinkLayout: TextInputLayout
     private lateinit var subtitlesView: TextView
     private lateinit var playButton: Button
+    private lateinit var pauseButton: Button
+    private lateinit var stopButton: Button
     private lateinit var youtubePlayerContainer: FrameLayout
     private var youtubeWebView: WebView? = null
     
@@ -104,6 +106,8 @@ class MainActivity : AppCompatActivity() {
         youtubeLinkInput = findViewById(R.id.youtubeLinkInput)
         subtitlesView = findViewById(R.id.subtitlesView)
         playButton = findViewById(R.id.playButton)
+        pauseButton = findViewById(R.id.pauseButton)
+        stopButton = findViewById(R.id.stopButton)
         
         // Check for audio recording permission
         checkAudioRecordingPermission()
@@ -221,6 +225,70 @@ class MainActivity : AppCompatActivity() {
                     // Valid video ID extracted, proceed to play
                     playVideo(link)
                 }
+            }
+        }
+        
+        // Set up pause button click listener
+        pauseButton.setOnClickListener {
+            youtubeWebView?.let { webView ->
+                // Execute JavaScript to pause the video
+                webView.loadUrl("javascript:(function() { " +
+                        "var player = document.querySelector('.html5-video-player'); " +
+                        "if(player) { " +
+                        "  player.pauseVideo ? player.pauseVideo() : (document.querySelector('video') ? document.querySelector('video').pause() : null); " +
+                        "} " +
+                        "})()")
+                
+                Log.d("YouTubeTranslator", "Pause button clicked, sending pause command")
+                
+                // Show a toast message in Russian
+                translator.translate("Video paused")
+                    .addOnSuccessListener { translatedText ->
+                        Toast.makeText(this@MainActivity, translatedText, Toast.LENGTH_SHORT).show()
+                    }
+                    .addOnFailureListener {
+                        Toast.makeText(this@MainActivity, "Видео приостановлено", Toast.LENGTH_SHORT).show()
+                    }
+            }
+        }
+        
+        // Set up stop button click listener
+        stopButton.setOnClickListener {
+            youtubeWebView?.let { webView ->
+                // Execute JavaScript to stop the video (stop = seek to 0 and pause)
+                webView.loadUrl("javascript:(function() { " +
+                        "var player = document.querySelector('.html5-video-player'); " +
+                        "if(player) { " +
+                        "  if(player.seekTo && player.pauseVideo) { " +
+                        "    player.seekTo(0); " +
+                        "    player.pauseVideo(); " +
+                        "  } else { " +
+                        "    var video = document.querySelector('video'); " +
+                        "    if(video) { " +
+                        "      video.currentTime = 0; " +
+                        "      video.pause(); " +
+                        "    } " +
+                        "  } " +
+                        "} " +
+                        "})()")
+                
+                Log.d("YouTubeTranslator", "Stop button clicked, sending stop command")
+                
+                // Stop subtitle generation
+                stopSubtitleGeneration()
+                
+                // Show a toast message in Russian
+                translator.translate("Video stopped")
+                    .addOnSuccessListener { translatedText ->
+                        Toast.makeText(this@MainActivity, translatedText, Toast.LENGTH_SHORT).show()
+                    }
+                    .addOnFailureListener {
+                        Toast.makeText(this@MainActivity, "Видео остановлено", Toast.LENGTH_SHORT).show()
+                    }
+                
+                // Clear subtitle display
+                subtitlesView.text = ""
+                recentSubtitles.clear()
             }
         }
     }

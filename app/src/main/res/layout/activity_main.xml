@@ -52,6 +52,34 @@
         <!-- The YouTube player will be added programmatically as a WebView -->
         <!-- We'll use the YouTube iframe API to play videos -->
     </FrameLayout>
+    
+    <LinearLayout
+        android:id="@+id/controlButtonsContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:padding="8dp"
+        android:background="#222222">
+        
+        <Button
+            android:id="@+id/pauseButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="4dp"
+            android:text="@string/pause"
+            android:textAllCaps="false" />
+            
+        <Button
+            android:id="@+id/stopButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:text="@string/stop"
+            android:textAllCaps="false" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/subtitlesView"
