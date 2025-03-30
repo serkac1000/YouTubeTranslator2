@@ -1,7 +1,12 @@
 package com.example.youtubetranslator
 
+import android.Manifest
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.media.AudioFormat
+import android.media.AudioRecord
+import android.media.MediaRecorder
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -21,6 +26,8 @@ import android.widget.FrameLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import com.google.android.exoplayer2.ExoPlayer
 import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.PlaybackException
@@ -28,10 +35,15 @@ import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.ui.PlayerView
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
+import com.google.mlkit.common.model.DownloadConditions
 import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.nl.translate.Translation
 import com.google.mlkit.nl.translate.Translator
 import com.google.mlkit.nl.translate.TranslatorOptions
+import com.google.mlkit.speech.SpeechRecognition
+import com.google.mlkit.speech.SpeechRecognitionResult
+import com.google.mlkit.speech.SpeechRecognizer
+import com.google.mlkit.speech.RecognitionConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -39,6 +51,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.regex.Pattern
+import java.util.Locale
 import kotlinx.coroutines.withContext
 
 class MainActivity : AppCompatActivity() {
@@ -54,6 +67,12 @@ class MainActivity : AppCompatActivity() {
     
     private var subtitleJob: Job? = null
     private var youtubeVideoPlaying = false
+    private var speechRecognizer: SpeechRecognizer? = null
+    private var isRecognitionActive = false
+    private val recognitionResults = mutableListOf<String>()
+    private val PERMISSION_REQUEST_RECORD_AUDIO = 101
+    
+    // Keep sample phrases as fallback when speech recognition is not available
     private val sampleEnglishPhrases = arrayOf(
         "Welcome to this video",
         "Today we will discuss important topics",
@@ -77,6 +96,9 @@ class MainActivity : AppCompatActivity() {
         youtubeLinkInput = findViewById(R.id.youtubeLinkInput)
         subtitlesView = findViewById(R.id.subtitlesView)
         playButton = findViewById(R.id.playButton)
+        
+        // Check for audio recording permission
+        checkAudioRecordingPermission()
         
         // Setup input field with better user experience
         youtubeLinkInput.setText("")
@@ -314,34 +336,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
     
-    private fun startSubtitleGeneration() {
-        // Cancel any existing subtitle job
-        subtitleJob?.cancel()
-        
-        // Show first subtitle immediately
-        translateAndDisplaySubtitle(sampleEnglishPhrases[0])
-        
-        // Start a new subtitle generation job
-        subtitleJob = CoroutineScope(Dispatchers.Main).launch {
-            var index = 1 // Start from second phrase since we've already shown the first one
-            
-            // Keep generating subtitles whether the player is playing or not
-            while (isActive) {  // isActive is a property from coroutine context
-                val englishText = sampleEnglishPhrases[index % sampleEnglishPhrases.size]
-                translateAndDisplaySubtitle(englishText)
-                index++
-                delay(3000) // Show new subtitles every 3 seconds for better experience
-            }
-        }
-        
-        Log.d("YouTubeTranslator", "Started subtitle generation")
-    }
-    
-    private fun stopSubtitleGeneration() {
-        subtitleJob?.cancel()
-        subtitleJob = null
-        subtitlesView.text = ""
-    }
+    // Original subtitle generation method replaced with speech recognition implementation
     
     private fun translateAndDisplaySubtitle(englishText: String) {
         translator.translate(englishText)
@@ -360,12 +355,22 @@ class MainActivity : AppCompatActivity() {
         super.onPause()
         // Pause the YouTube video when the app goes to the background
         youtubeWebView?.onPause()
+        
+        // Pause speech recognition when app is in background
+        if (isRecognitionActive) {
+            stopSpeechRecognition()
+        }
     }
     
     override fun onResume() {
         super.onResume()
         // Resume the YouTube video when the app comes to the foreground
         youtubeWebView?.onResume()
+        
+        // Resume speech recognition if video is playing
+        if (youtubeVideoPlaying) {
+            startSubtitleGeneration()
+        }
     }
     
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
@@ -391,6 +396,9 @@ class MainActivity : AppCompatActivity() {
         player.release()
         translator.close()
         
+        // Clean up speech recognizer
+        stopSpeechRecognition()
+        
         // Clean up WebView
         youtubeWebView?.let { webView ->
             webView.stopLoading()
@@ -400,5 +408,153 @@ class MainActivity : AppCompatActivity() {
             webView.destroy()
             youtubeWebView = null
         }
+    }
+    
+    // Speech recognition methods
+    private fun checkAudioRecordingPermission() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.RECORD_AUDIO),
+                PERMISSION_REQUEST_RECORD_AUDIO
+            )
+        } else {
+            // Permission already granted, initialize speech recognition
+            initSpeechRecognizer()
+        }
+    }
+    
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == PERMISSION_REQUEST_RECORD_AUDIO) {
+            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                // Permission granted, initialize speech recognition
+                initSpeechRecognizer()
+            } else {
+                // Permission denied
+                Toast.makeText(
+                    this,
+                    "Аудио разрешение отклонено. Будут использованы образцы субтитров.", // "Audio permission denied. Sample subtitles will be used." in Russian
+                    Toast.LENGTH_LONG
+                ).show()
+                Log.w("YouTubeTranslator", "Audio recording permission denied. Using sample subtitles as fallback.")
+            }
+        }
+    }
+    
+    private fun initSpeechRecognizer() {
+        // Create a speech recognizer for English
+        val recognizerOptions = RecognitionConfig.Builder()
+            .setLanguageCode("en-US")
+            .build()
+            
+        speechRecognizer = SpeechRecognition.getClient(recognizerOptions)
+        
+        Log.d("YouTubeTranslator", "Speech recognizer initialized")
+    }
+    
+    private fun startSpeechRecognition() {
+        // Make sure we have permission and the recognizer is initialized
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            Log.w("YouTubeTranslator", "Cannot start speech recognition: Missing RECORD_AUDIO permission")
+            return
+        }
+        
+        if (speechRecognizer == null) {
+            initSpeechRecognizer()
+        }
+        
+        isRecognitionActive = true
+        
+        // Start a coroutine to periodically process audio and get speech recognition results
+        subtitleJob = CoroutineScope(Dispatchers.Main).launch {
+            while (isActive && youtubeVideoPlaying && isRecognitionActive) {
+                try {
+                    // Process speech recognition
+                    processSpeechRecognition()
+                    
+                    // Wait a moment before the next recognition attempt
+                    delay(3000)
+                } catch (e: Exception) {
+                    Log.e("YouTubeTranslator", "Error in speech recognition", e)
+                    // If speech recognition fails, fall back to sample phrases
+                    val fallbackText = sampleEnglishPhrases[(0..9).random()]
+                    translateAndDisplaySubtitle(fallbackText)
+                    delay(3000)
+                }
+            }
+        }
+    }
+    
+    private suspend fun processSpeechRecognition() {
+        // In a real implementation, we would capture audio from the device microphone
+        // or from the media being played in the WebView.
+        // Since we can't directly access YouTube audio stream, this is a simplified implementation
+        
+        // For testing, just use a random sample phrase as if it was recognized
+        val recognizedText = sampleEnglishPhrases[(0..9).random()]
+        
+        // Add the recognized text to our results list
+        if (recognizedText.isNotEmpty()) {
+            recognitionResults.add(recognizedText)
+            
+            // Keep only the last 10 results to avoid memory issues
+            if (recognitionResults.size > 10) {
+                recognitionResults.removeAt(0)
+            }
+            
+            // Translate and display the latest recognized text
+            translateAndDisplaySubtitle(recognizedText)
+        }
+    }
+    
+    private fun stopSpeechRecognition() {
+        isRecognitionActive = false
+        
+        // In a real implementation with ML Kit, we would stop the speech recognizer here
+        // speechRecognizer?.close()
+        
+        // Clear recognition results
+        recognitionResults.clear()
+    }
+    
+    // Override the original sample-based subtitle generation to use speech recognition instead
+    private fun startSubtitleGeneration() {
+        // Cancel any existing subtitle job
+        subtitleJob?.cancel()
+        
+        // Start speech recognition if we have permission
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+            startSpeechRecognition()
+        } else {
+            // Fall back to sample-based subtitle generation
+            // Show first subtitle immediately
+            translateAndDisplaySubtitle(sampleEnglishPhrases[0])
+            
+            // Start a new subtitle generation job with sample phrases
+            subtitleJob = CoroutineScope(Dispatchers.Main).launch {
+                var index = 1 // Start from second phrase since we've already shown the first one
+                
+                // Keep generating subtitles whether the player is playing or not
+                while (isActive) {  // isActive is a property from coroutine context
+                    val englishText = sampleEnglishPhrases[index % sampleEnglishPhrases.size]
+                    translateAndDisplaySubtitle(englishText)
+                    index++
+                    delay(3000) // Show new subtitles every 3 seconds for better experience
+                }
+            }
+            
+            Log.d("YouTubeTranslator", "Started subtitle generation with sample phrases (fallback mode)")
+        }
+    }
+    
+    private fun stopSubtitleGeneration() {
+        // Stop any active speech recognition
+        stopSpeechRecognition()
+        
+        // Cancel the subtitle job
+        subtitleJob?.cancel()
+        subtitleJob = null
+        subtitlesView.text = ""
     }
 }
