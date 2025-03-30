@@ -213,19 +213,39 @@ class MainActivity : AppCompatActivity() {
             return
         }
         
-        // Create a URL for the video using the extracted video ID
-        // Note: This is a simplified approach and might not work for all videos
-        // In a real implementation, a server-side solution would be better
-        val streamUrl = "https://www.youtube.com/watch?v=$videoId"
-        Log.d("YouTubeTranslator", "Playing video with ID: $videoId")
+        Log.d("YouTubeTranslator", "Extracted video ID: $videoId from link: $link")
         
-        // Prepare and play the video
-        val mediaItem = MediaItem.fromUri(streamUrl)
-        player.setMediaItem(mediaItem)
-        player.prepare()
-        player.play()
+        // IMPORTANT: ExoPlayer cannot directly play YouTube videos using the YouTube URL
+        // We need to either:
+        // 1. Use the YouTube API (which requires a API key)
+        // 2. Use a specialized library like YouTubeExtractor
+        // 3. Use WebView with embedded player
         
-        // Reset and start subtitle generation
+        // For this demo, we'll show a message to the user about the video ID extraction
+        // and display sample subtitles but won't actually play the video
+        Toast.makeText(
+            this,
+            "Video ID extracted: $videoId. Direct YouTube playback requires additional integration.",
+            Toast.LENGTH_LONG
+        ).show()
+        
+        Log.d("YouTubeTranslator", "Note: ExoPlayer cannot directly play YouTube URLs without additional libraries")
+        
+        // In a real implementation, we would need to extract the actual media URLs from YouTube
+        // This is intentionally commented out as it would not work:
+        // val streamUrl = "https://www.youtube.com/watch?v=$videoId"
+        // val mediaItem = MediaItem.fromUri(streamUrl)
+        // player.setMediaItem(mediaItem)
+        // player.prepare()
+        // player.play()
+        
+        // Instead, show a message in the player view
+        val subtitlesText = "Extracted YouTube Video ID: $videoId\n" +
+                "Direct playback requires YouTube API or specialized libraries.\n" +
+                "Showing sample translated subtitles below:"
+        subtitlesView.text = subtitlesText
+        
+        // Reset and start subtitle generation for demo purposes
         stopSubtitleGeneration()
         startSubtitleGeneration()
     }
@@ -277,15 +297,24 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun startSubtitleGeneration() {
+        // Cancel any existing subtitle job
+        subtitleJob?.cancel()
+        
+        // Start a new subtitle generation job
         subtitleJob = CoroutineScope(Dispatchers.Main).launch {
             var index = 0
-            while (player.isPlaying) {
+            
+            // Keep generating subtitles whether the player is playing or not
+            // This is for demonstration purposes since we can't directly play YouTube videos
+            while (isActive) {  // isActive is a property from coroutine context
                 val englishText = sampleEnglishPhrases[index % sampleEnglishPhrases.size]
                 translateAndDisplaySubtitle(englishText)
                 index++
                 delay(5000) // Update subtitles every 5 seconds
             }
         }
+        
+        Log.d("YouTubeTranslator", "Started subtitle generation")
     }
     
     private fun stopSubtitleGeneration() {
