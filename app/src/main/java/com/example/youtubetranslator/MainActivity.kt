@@ -1,10 +1,13 @@
 package com.example.youtubetranslator
 
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
+import android.view.Menu
+import android.view.MenuItem
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -245,8 +248,8 @@ class MainActivity : AppCompatActivity() {
         // Add the WebView to the container
         youtubePlayerContainer.addView(youtubeWebView)
         
-        // Generate YouTube iframe embed URL with API key
-        val youtubeApiKey = BuildConfig.YOUTUBE_API_KEY
+        // Get the API key from settings or fallback to BuildConfig
+        val youtubeApiKey = SettingsActivity.getYouTubeApiKey(this)
         val embedUrl = "https://www.youtube.com/embed/$videoId?enablejsapi=1&key=$youtubeApiKey&autoplay=1&rel=0&showinfo=0"
         
         // Load the YouTube embed URL
@@ -352,6 +355,22 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         // Resume the YouTube video when the app comes to the foreground
         youtubeWebView?.onResume()
+    }
+    
+    override fun onCreateOptionsMenu(menu: Menu): Boolean {
+        menuInflater.inflate(R.menu.main_menu, menu)
+        return true
+    }
+    
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when (item.itemId) {
+            R.id.menu_settings -> {
+                // Navigate to Settings screen
+                startActivity(Intent(this, SettingsActivity::class.java))
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
     }
     
     override fun onDestroy() {
