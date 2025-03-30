@@ -62,10 +62,13 @@ class MainActivity : AppCompatActivity() {
     private var youtubeWebView: WebView? = null
     
     private var subtitleJob: Job? = null
+    private var fallbackSubtitleJob: Job? = null
     private var youtubeVideoPlaying = false
     private var speechRecognizer: SpeechRecognizer? = null
     private var isRecognitionActive = false
     private val recognitionResults = mutableListOf<String>()
+    private var lastSubtitleText = ""
+    private var subtitleDisplayActive = false
     private val PERMISSION_REQUEST_RECORD_AUDIO = 101
     
     // Keep sample phrases as fallback when speech recognition is not available
@@ -335,10 +338,26 @@ class MainActivity : AppCompatActivity() {
     // Original subtitle generation method replaced with speech recognition implementation
     
     private fun translateAndDisplaySubtitle(englishText: String) {
+        // Don't translate the same text repeatedly to avoid flicker
+        if (englishText == lastSubtitleText && subtitleDisplayActive) {
+            return
+        }
+        
+        // Update the last processed text
+        lastSubtitleText = englishText
+        subtitleDisplayActive = true
+        
+        Log.d("YouTubeTranslator", "Translating: $englishText")
+        
         translator.translate(englishText)
             .addOnSuccessListener { translatedText ->
                 // Show only Russian subtitles
                 subtitlesView.text = translatedText
+                
+                // Schedule this subtitle to remain visible for at least 3 seconds
+                CoroutineScope(Dispatchers.Main).launch {
+                    delay(3000)  // Keep subtitle visible for 3 seconds minimum
+                }
             }
             .addOnFailureListener { exception ->
                 Log.e("YouTubeTranslator", "Translation failed", exception)
@@ -613,14 +632,34 @@ class MainActivity : AppCompatActivity() {
     private fun startSubtitleGeneration() {
         // Cancel any existing subtitle job
         subtitleJob?.cancel()
+        fallbackSubtitleJob?.cancel()
+        
+        // Reset subtitle display state
+        subtitleDisplayActive = false
+        
+        // Start with a default subtitle to ensure something is shown immediately
+        translateAndDisplaySubtitle(sampleEnglishPhrases[0])
         
         // Start speech recognition if we have permission
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
             startSpeechRecognition()
+            
+            // Create a fallback job that will periodically ensure subtitles are showing
+            fallbackSubtitleJob = CoroutineScope(Dispatchers.Main).launch {
+                while (isActive && youtubeVideoPlaying) {
+                    delay(4000) // Check every 4 seconds
+                    
+                    // If no subtitles are showing for more than 4 seconds, show fallback
+                    if (subtitlesView.text.isNullOrEmpty() || !subtitleDisplayActive) {
+                        val fallbackText = sampleEnglishPhrases[(0..9).random()]
+                        Log.d("YouTubeTranslator", "No subtitles showing, using fallback: $fallbackText")
+                        translateAndDisplaySubtitle(fallbackText)
+                    }
+                }
+            }
         } else {
             // Fall back to sample-based subtitle generation
-            // Show first subtitle immediately
-            translateAndDisplaySubtitle(sampleEnglishPhrases[0])
+            Log.d("YouTubeTranslator", "Starting sample-based subtitle generation (fallback mode)")
             
             // Start a new subtitle generation job with sample phrases
             subtitleJob = CoroutineScope(Dispatchers.Main).launch {
@@ -634,8 +673,6 @@ class MainActivity : AppCompatActivity() {
                     delay(3000) // Show new subtitles every 3 seconds for better experience
                 }
             }
-            
-            Log.d("YouTubeTranslator", "Started subtitle generation with sample phrases (fallback mode)")
         }
     }
     
@@ -643,9 +680,16 @@ class MainActivity : AppCompatActivity() {
         // Stop any active speech recognition
         stopSpeechRecognition()
         
-        // Cancel the subtitle job
+        // Cancel all subtitle jobs
         subtitleJob?.cancel()
         subtitleJob = null
+        
+        fallbackSubtitleJob?.cancel()
+        fallbackSubtitleJob = null
+        
+        // Clear subtitle display
         subtitlesView.text = ""
+        subtitleDisplayActive = false
+        lastSubtitleText = ""
     }
 }
