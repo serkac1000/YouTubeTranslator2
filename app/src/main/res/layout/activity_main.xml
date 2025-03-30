@@ -42,14 +42,16 @@
             android:textAllCaps="false" />
     </LinearLayout>
 
-    <com.google.android.exoplayer2.ui.PlayerView
-        android:id="@+id/videoPlayer"
+    <FrameLayout
+        android:id="@+id/youtubePlayerContainer"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:background="@android:color/black"
-        app:use_controller="true"
-        app:resize_mode="fit" />
+        android:background="@android:color/black">
+        
+        <!-- The YouTube player will be added programmatically as a WebView -->
+        <!-- We'll use the YouTube iframe API to play videos -->
+    </FrameLayout>
 
     <TextView
         android:id="@+id/subtitlesView"

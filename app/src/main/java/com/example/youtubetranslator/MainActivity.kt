@@ -7,10 +7,14 @@ import android.text.TextWatcher
 import android.util.Log
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
+import android.webkit.WebChromeClient
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import android.widget.Button
-import com.google.android.material.textfield.TextInputEditText
-import com.google.android.material.textfield.TextInputLayout
+import android.widget.FrameLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -19,6 +23,8 @@ import com.google.android.exoplayer2.MediaItem
 import com.google.android.exoplayer2.PlaybackException
 import com.google.android.exoplayer2.Player
 import com.google.android.exoplayer2.ui.PlayerView
+import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
 import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.nl.translate.Translation
 import com.google.mlkit.nl.translate.Translator
@@ -27,7 +33,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.regex.Pattern
 import kotlinx.coroutines.withContext
 import java.util.regex.Pattern
 
@@ -35,13 +43,15 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var player: ExoPlayer
     private lateinit var translator: Translator
-    private lateinit var playerView: PlayerView
     private lateinit var youtubeLinkInput: TextInputEditText
     private lateinit var youtubeLinkLayout: TextInputLayout
     private lateinit var subtitlesView: TextView
     private lateinit var playButton: Button
+    private lateinit var youtubePlayerContainer: FrameLayout
+    private var youtubeWebView: WebView? = null
     
     private var subtitleJob: Job? = null
+    private var youtubeVideoPlaying = false
     private val sampleEnglishPhrases = arrayOf(
         "Welcome to this video",
         "Today we will discuss important topics",
@@ -60,7 +70,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         
         // Initialize views
-        playerView = findViewById(R.id.videoPlayer)
+        youtubePlayerContainer = findViewById(R.id.youtubePlayerContainer)
         youtubeLinkLayout = findViewById(R.id.youtubeLinkLayout)
         youtubeLinkInput = findViewById(R.id.youtubeLinkInput)
         subtitlesView = findViewById(R.id.subtitlesView)
@@ -128,29 +138,10 @@ class MainActivity : AppCompatActivity() {
             imm.showSoftInput(youtubeLinkInput, InputMethodManager.SHOW_IMPLICIT)
         }
         
-        // Initialize ExoPlayer
+        // Initialize ExoPlayer (keeping it for future use if needed)
         player = ExoPlayer.Builder(this).build()
-        playerView.player = player
         
-        // Set up player listeners
-        player.addListener(object : Player.Listener {
-            override fun onPlayerError(error: PlaybackException) {
-                Toast.makeText(
-                    this@MainActivity,
-                    "Error playing video: ${error.message}",
-                    Toast.LENGTH_LONG
-                ).show()
-                Log.e("YouTubeTranslator", "Player error", error)
-            }
-            
-            override fun onPlaybackStateChanged(playbackState: Int) {
-                if (playbackState == Player.STATE_ENDED) {
-                    stopSubtitleGeneration()
-                } else if (playbackState == Player.STATE_READY) {
-                    startSubtitleGeneration()
-                }
-            }
-        })
+        // We'll use a WebView instead of ExoPlayer for YouTube playback
         
         // Initialize ML Kit Translator (English to Russian)
         val options = TranslatorOptions.Builder()
@@ -205,6 +196,7 @@ class MainActivity : AppCompatActivity() {
     private fun playVideo(link: String) {
         // Extract video ID from YouTube link
         val videoId = extractVideoId(link)
+        
         // We've already validated the video ID in the click listener, but let's double-check
         if (videoId.isEmpty()) {
             Log.e("YouTubeTranslator", "Empty video ID after validation. Link: $link")
@@ -213,41 +205,57 @@ class MainActivity : AppCompatActivity() {
             return
         }
         
-        Log.d("YouTubeTranslator", "Extracted video ID: $videoId from link: $link")
+        Log.d("YouTubeTranslator", "Playing YouTube video with ID: $videoId")
         
-        // IMPORTANT: ExoPlayer cannot directly play YouTube videos using the YouTube URL
-        // We need to either:
-        // 1. Use the YouTube API (which requires a API key)
-        // 2. Use a specialized library like YouTubeExtractor
-        // 3. Use WebView with embedded player
+        // Display a loading message
+        subtitlesView.text = getString(R.string.loading_video)
         
-        // For this demo, we'll show a message to the user about the video ID extraction
-        // and display sample subtitles but won't actually play the video
-        Toast.makeText(
-            this,
-            "Video ID extracted: $videoId. Direct YouTube playback requires additional integration.",
-            Toast.LENGTH_LONG
-        ).show()
+        // Remove any existing WebView
+        youtubePlayerContainer.removeAllViews()
         
-        Log.d("YouTubeTranslator", "Note: ExoPlayer cannot directly play YouTube URLs without additional libraries")
+        // Create a new WebView for YouTube playback
+        youtubeWebView = WebView(this).apply {
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+            
+            // Configure WebView settings
+            settings.javaScriptEnabled = true
+            settings.mediaPlaybackRequiresUserGesture = false
+            settings.domStorageEnabled = true
+            settings.loadsImagesAutomatically = true
+            settings.loadWithOverviewMode = true
+            settings.useWideViewPort = true
+            settings.setSupportZoom(false)
+            
+            // Set WebView clients
+            webViewClient = object : WebViewClient() {
+                override fun onPageFinished(view: WebView?, url: String?) {
+                    super.onPageFinished(view, url)
+                    Log.d("YouTubeTranslator", "WebView page loading finished")
+                    youtubeVideoPlaying = true
+                    startSubtitleGeneration()
+                }
+            }
+            
+            webChromeClient = WebChromeClient()
+        }
         
-        // In a real implementation, we would need to extract the actual media URLs from YouTube
-        // This is intentionally commented out as it would not work:
-        // val streamUrl = "https://www.youtube.com/watch?v=$videoId"
-        // val mediaItem = MediaItem.fromUri(streamUrl)
-        // player.setMediaItem(mediaItem)
-        // player.prepare()
-        // player.play()
+        // Add the WebView to the container
+        youtubePlayerContainer.addView(youtubeWebView)
         
-        // Instead, show a message in the player view
-        val subtitlesText = "Extracted YouTube Video ID: $videoId\n" +
-                "Direct playback requires YouTube API or specialized libraries.\n" +
-                "Showing sample translated subtitles below:"
-        subtitlesView.text = subtitlesText
+        // Generate YouTube iframe embed URL with API key
+        val youtubeApiKey = BuildConfig.YOUTUBE_API_KEY
+        val embedUrl = "https://www.youtube.com/embed/$videoId?enablejsapi=1&key=$youtubeApiKey&autoplay=1&rel=0&showinfo=0"
         
-        // Reset and start subtitle generation for demo purposes
+        // Load the YouTube embed URL
+        youtubeWebView?.loadUrl(embedUrl)
+        
+        Log.d("YouTubeTranslator", "Loading YouTube video in WebView with URL: $embedUrl")
+        
+        // Reset subtitles
         stopSubtitleGeneration()
-        startSubtitleGeneration()
     }
     
     private fun extractVideoId(url: String): String {
@@ -334,10 +342,33 @@ class MainActivity : AppCompatActivity() {
             }
     }
     
+    override fun onPause() {
+        super.onPause()
+        // Pause the YouTube video when the app goes to the background
+        youtubeWebView?.onPause()
+    }
+    
+    override fun onResume() {
+        super.onResume()
+        // Resume the YouTube video when the app comes to the foreground
+        youtubeWebView?.onResume()
+    }
+    
     override fun onDestroy() {
         super.onDestroy()
+        // Clean up resources
         stopSubtitleGeneration()
         player.release()
         translator.close()
+        
+        // Clean up WebView
+        youtubeWebView?.let { webView ->
+            webView.stopLoading()
+            webView.clearHistory()
+            webView.clearCache(true)
+            webView.clearFormData()
+            webView.destroy()
+            youtubeWebView = null
+        }
     }
 }

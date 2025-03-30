@@ -2,4 +2,6 @@
     <string name="app_name">YouTube Translator</string>
     <string name="enter_youtube_link">Enter YouTube link here</string>
     <string name="play">Play</string>
+    <string name="loading_video">Loading video...</string>
+    <string name="video_error">Error loading video</string>
 </resources>

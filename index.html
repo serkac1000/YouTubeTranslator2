@@ -107,7 +107,7 @@
     
     <div class="feature">
         <h3>YouTube Video Playback</h3>
-        <p>Paste any YouTube link and watch videos directly in the app using ExoPlayer, a powerful media playback library for Android.</p>
+        <p>Paste any YouTube link and watch videos directly in the app using YouTube's iframe API integrated with a WebView for reliable playback.</p>
     </div>
     
     <div class="feature">
@@ -125,13 +125,14 @@
     <p>The app is built using:</p>
     <ul>
         <li><strong>Kotlin</strong> - Modern Android programming language</li>
-        <li><strong>ExoPlayer</strong> - For video playback capabilities</li>
+        <li><strong>WebView</strong> - For integrated YouTube iframe API video playback</li>
+        <li><strong>YouTube API</strong> - For authenticated access to YouTube videos</li>
         <li><strong>ML Kit Translation</strong> - For on-device English to Russian translation</li>
         <li><strong>Coroutines</strong> - For managing background tasks and asynchronous operations</li>
     </ul>
     
     <div class="note">
-        <p><strong>Note:</strong> This implementation uses a simplified approach for YouTube video playback. In a production environment, you would typically use YouTube's official API or another method to extract the video stream.</p>
+        <p><strong>Note:</strong> This implementation uses YouTube's iframe API via WebView for reliable video playback. The app requires a valid YouTube API key to function properly.</p>
     </div>
     
     <h2>How It Works</h2>
@@ -140,7 +141,7 @@
     <ol>
         <li>User enters a YouTube video URL in the input field</li>
         <li>When the Play button is pressed, the app extracts the video ID from the URL</li>
-        <li>ExoPlayer attempts to play the YouTube video (note: direct playback may be limited by YouTube restrictions)</li>
+        <li>A WebView loads the YouTube video using the iframe API with the YouTube API key</li>
         <li>While the video plays, the app generates sample English text every 5 seconds</li>
         <li>Each English phrase is translated to Russian using ML Kit's on-device translation</li>
         <li>Both the original English and translated Russian text are displayed at the bottom of the screen</li>
@@ -177,12 +178,12 @@
     </div>
     
     <div class="note">
-        <p><strong>Latest Update (March 27, 2025):</strong> Completely redesigned URL input field with Material Design components, better error handling, auto-focus, and automatic keyboard display. Added custom launcher icons featuring YouTube-style play button with translation symbols.</p>
+        <p><strong>Latest Update (March 30, 2025):</strong> Added YouTube iframe API integration for reliable video playback. Completely redesigned URL input field with Material Design components, better error handling, auto-focus, and automatic keyboard display. Added custom launcher icons featuring YouTube-style play button with translation symbols.</p>
     </div>
     
     <div class="download-section">
-        <a href="youtube_translator.apk" class="download-btn">⬇️ Download APK v1.1</a>
-        <p>File size: ~5MB • Android 5.0+ required</p>
+        <a href="youtube_translator.apk" class="download-btn">⬇️ Download APK v1.2</a>
+        <p>File size: ~5MB • Android 5.0+ required • YouTube API powered</p>
     </div>
     
     <h2>Future Improvements</h2>
