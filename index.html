@@ -106,8 +106,8 @@
     <h2>Key Features</h2>
     
     <div class="feature">
-        <h3>YouTube Video Playback</h3>
-        <p>Paste any YouTube link and watch videos directly in the app using YouTube's iframe API integrated with a WebView for reliable playback.</p>
+        <h3>Enhanced YouTube Video Playback</h3>
+        <p>Paste any YouTube link and watch videos directly in the app using YouTube's iframe API integrated with a WebView for reliable playback. The app features advanced buffering recovery, continuous subtitle display during buffering, and automatic quality adjustments for a seamless viewing experience even with unstable connections.</p>
     </div>
     
     <div class="feature">
@@ -139,12 +139,14 @@
     
     <p>The app follows these basic steps:</p>
     <ol>
-        <li>User enters a YouTube video URL in the input field</li>
+        <li>User enters a YouTube video URL in the input field (previous URLs are remembered)</li>
         <li>When the Play button is pressed, the app extracts the video ID from the URL</li>
         <li>A WebView loads the YouTube video using the iframe API with the YouTube API key</li>
         <li>While the video plays, the app generates sample English text every 5 seconds</li>
         <li>Each English phrase is translated to Russian using ML Kit's on-device translation</li>
-        <li>Both the original English and translated Russian text are displayed at the bottom of the screen</li>
+        <li>Translated Russian text is displayed at the bottom of the screen in a YouTube-like subtitle format</li>
+        <li>During video buffering, the app detects the condition and continues generating subtitles with buffering indicators</li>
+        <li>Advanced buffer monitoring adjusts video quality and position to recover from buffering issues</li>
     </ol>
     
     <p>In a more advanced implementation, speech recognition would be used to capture the actual audio from the video for translation.</p>
@@ -178,11 +180,11 @@
     </div>
     
     <div class="note">
-        <p><strong>Latest Update (March 30, 2025):</strong> Added YouTube iframe API integration for reliable video playback. Completely redesigned URL input field with Material Design components, better error handling, auto-focus, and automatic keyboard display. Added custom launcher icons featuring YouTube-style play button with translation symbols.</p>
+        <p><strong>Latest Update (March 30, 2025):</strong> Implemented continuous subtitle display during video buffering with enhanced buffering detection and recovery. Added URL persistence between app sessions. Fixed "????" subtitle corruption issue. Improved video buffering performance with automatic quality adjustments and advanced buffer position detection. Enhanced subtitle display with a specialized buffering display mode.</p>
     </div>
     
     <div class="download-section">
-        <a href="youtube_translator.apk" class="download-btn">⬇️ Download APK v1.2</a>
+        <a href="youtube_translator.apk" class="download-btn">⬇️ Download APK v1.3</a>
         <p>File size: ~5MB • Android 5.0+ required • YouTube API powered</p>
     </div>
     

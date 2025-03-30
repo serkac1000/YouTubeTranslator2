@@ -471,9 +471,27 @@ class MainActivity : AppCompatActivity() {
         }
     }
     
-    private fun translateAndDisplaySubtitle(englishText: String) {
+    /**
+     * Generates a subtitle during buffering to ensure continuous engagement.
+     * This function is specifically used when video buffering is detected.
+     */
+    private fun generateBufferingSubtitle() {
+        val randomPhrase = sampleEnglishPhrases[(0 until sampleEnglishPhrases.size).random()]
+        Log.d("YouTubeTranslator", "Generating buffering subtitle with: $randomPhrase")
+        translateAndDisplaySubtitle(randomPhrase, true)
+    }
+    
+    /**
+     * This function is called to translate a given English text to Russian and display it
+     * in the subtitles view. It updates the latest subtitles display with proper formatting.
+     * 
+     * @param englishText The English text to translate
+     * @param isBufferingSubtitle If true, this subtitle is being generated during buffering
+     */
+    private fun translateAndDisplaySubtitle(englishText: String, isBufferingSubtitle: Boolean = false) {
         // Don't translate the same text repeatedly to avoid flicker
-        if (englishText == lastSubtitleText && subtitleDisplayActive) {
+        // Exception: always translate for buffering subtitles to ensure continuous display
+        if (!isBufferingSubtitle && englishText == lastSubtitleText && subtitleDisplayActive) {
             return
         }
         
@@ -481,23 +499,34 @@ class MainActivity : AppCompatActivity() {
         lastSubtitleText = englishText
         subtitleDisplayActive = true
         
-        Log.d("YouTubeTranslator", "Translating: $englishText")
+        val logPrefix = if (isBufferingSubtitle) "[BUFFERING] " else ""
+        Log.d("YouTubeTranslator", "${logPrefix}Translating: $englishText")
         
         translator.translate(englishText)
             .addOnSuccessListener { translatedText ->
                 // Check if translation contains "????" characters (corrupted translation)
                 if (translatedText.contains("????")) {
-                    Log.e("YouTubeTranslator", "Corrupted translation detected: $translatedText")
+                    Log.e("YouTubeTranslator", "${logPrefix}Corrupted translation detected: $translatedText")
                     
                     // Reset the translator to fix the issue
                     resetTranslator()
                     
                     // Use a fallback Russian text
-                    val fallbackRussian = "Продолжение видео..." // "Video continues..." in Russian
+                    val fallbackRussian = if (isBufferingSubtitle)
+                        "Буферизация видео..." // "Video buffering..." in Russian
+                    else
+                        "Продолжение видео..." // "Video continues..." in Russian
+                        
                     recentSubtitles.add(fallbackRussian)
                 } else {
+                    // For buffering subtitles, add a prefix to indicate buffering
+                    val displayTranslation = if (isBufferingSubtitle)
+                        "⟳ $translatedText" // Add buffering indicator
+                    else
+                        translatedText
+                        
                     // Add valid translation to our recent list
-                    recentSubtitles.add(translatedText)
+                    recentSubtitles.add(displayTranslation)
                 }
                 
                 // Keep only the most recent subtitles (maximum 3 lines)
@@ -512,14 +541,31 @@ class MainActivity : AppCompatActivity() {
                 subtitlesView.text = displayText
                 
                 // Schedule this subtitle set to remain visible for at least 3 seconds
+                // For buffering subtitles, use a shorter duration to allow more frequent updates
+                val displayDuration = if (isBufferingSubtitle) 1500L else 3000L
                 CoroutineScope(Dispatchers.Main).launch {
-                    delay(3000)  // Keep subtitle visible for 3 seconds minimum
+                    delay(displayDuration)
                 }
             }
             .addOnFailureListener { exception ->
-                Log.e("YouTubeTranslator", "Translation failed", exception)
+                Log.e("YouTubeTranslator", "${logPrefix}Translation failed", exception)
+                
                 // If translation fails, still try to show something in Russian
-                subtitlesView.text = "Ошибка перевода" // "Translation error" in Russian
+                val fallbackText = if (isBufferingSubtitle)
+                    "⟳ Буферизация видео..." // "Video buffering..." in Russian with buffering indicator
+                else
+                    "Ошибка перевода" // "Translation error" in Russian
+                    
+                // Add to the recent subtitles
+                recentSubtitles.add(fallbackText)
+                
+                // Keep only the most recent subtitles
+                while (recentSubtitles.size > MAX_SUBTITLE_LINES) {
+                    recentSubtitles.removeAt(0)
+                }
+                
+                // Display the recent subtitles
+                subtitlesView.text = recentSubtitles.joinToString("\n")
             }
     }
     
@@ -918,10 +964,14 @@ class MainActivity : AppCompatActivity() {
         
         // Start a coroutine to periodically check and enforce video playback
         videoPlaybackMonitorJob = CoroutineScope(Dispatchers.Main).launch {
+            var bufferingDetected = false
+            var bufferingStartTime = 0L
+            var consecutiveBufferingFrames = 0
+            
             while (isActive && youtubeVideoPlaying) {
                 try {
-                    // Check video state and restart if needed every 1 second
-                    webView.loadUrl("javascript:(function() { " +
+                    // Check video state and handle buffering every 300ms (more responsive)
+                    webView.evaluateJavascript("(function() { " +
                         "var video = document.querySelector('video'); " +
                         "if(video) { " +
                         "  if(video.paused) { " +
@@ -934,17 +984,96 @@ class MainActivity : AppCompatActivity() {
                         "  }; " +
                         "  video.playbackRate = 1.0; " +  // Ensure normal playback speed
                         "  video.autoplay = true; " +     // Ensure autoplay is enabled
-                        "  if (video.readyState < 4) { " + // If video is buffering (not enough data)
-                        "    console.log('Video buffering detected - adjusting'); " +
-                        "    video.currentTime -= 0.5; " + // Back up slightly to help buffering
+                        
+                        // Enhanced buffering detection and handling
+                        "  var isBuffering = false; " +
+                        "  if (video.readyState < 3) { " + // Enhanced buffering detection
+                        "    isBuffering = true; " +
+                        "    console.log('Video buffering detected at ' + video.currentTime + 's'); " +
+                        
+                        // Try to recover from buffering faster
+                        "    if (video.buffered.length > 0) { " +
+                        "      var bufferedEnd = video.buffered.end(video.buffered.length-1); " +
+                        "      if (bufferedEnd > video.currentTime + 0.5) { " +
+                        "        console.log('Buffered content available, advancing to: ' + (video.currentTime + 0.3)); " +
+                        "        video.currentTime += 0.3; " + // Skip ahead to buffered content
+                        "      } " +
+                        "    } " +
+                        
+                        // Try adjusting quality to improve buffering
+                        "    if(window.YT && window.YT.player) { " +
+                        "      try { " +
+                        "        console.log('Trying to adjust quality settings'); " +
+                        "        window.YT.player.setPlaybackQuality('small'); " + // Low quality helps with buffering
+                        "      } catch(e) { console.log('Error adjusting quality: ' + e); } " +
+                        "    } " +
                         "  } " +
+                        "  return JSON.stringify({isBuffering: isBuffering, currentTime: video.currentTime}); " +
                         "} else { " +
                         "  console.log('Video element not found'); " +
+                        "  return JSON.stringify({isBuffering: false, currentTime: 0}); " +
                         "} " +
-                        "})()")
+                        "})()", { result ->
+                        try {
+                            // Parse the JavaScript result
+                            val resultJson = result.trim('"').replace("\\\"", "\"")
+                            if (resultJson.contains("isBuffering")) {
+                                val isBuffering = resultJson.contains("\"isBuffering\":true")
+                                bufferingDetected = isBuffering
+                                
+                                Log.d("YouTubeTranslator", "Buffering state: $bufferingDetected from $resultJson")
+                            }
+                        } catch (e: Exception) {
+                            Log.e("YouTubeTranslator", "Error parsing buffering state", e)
+                        }
+                    })
                     
-                    // Shorter delay for more responsive checking (2 times per second)
-                    delay(500)
+                    // Check if buffering occurs for more than 2 seconds and generate ongoing subtitles
+                    val currentTime = System.currentTimeMillis()
+                    
+                    if (bufferingDetected) {
+                        if (currentTime - bufferingStartTime > 2000) { // 2 seconds of buffering
+                            // Generate an interim subtitle to maintain engagement during buffering
+                            Log.d("YouTubeTranslator", "Buffering detected for ${(currentTime - bufferingStartTime)/1000}s, generating interim subtitle")
+                            generateBufferingSubtitle() // Use our dedicated buffering subtitle function
+                            
+                            // Reset buffer timer so we don't spam subtitles
+                            bufferingStartTime = currentTime
+                            
+                            // Attempt to improve playback if buffering persists
+                            consecutiveBufferingFrames++
+                            
+                            // If buffering persists for too long, try more aggressive recovery
+                            if (consecutiveBufferingFrames > 5) {
+                                Log.d("YouTubeTranslator", "Extended buffering detected, attempting recovery")
+                                webView.loadUrl("javascript:(function() { " +
+                                    "var video = document.querySelector('video'); " +
+                                    "if(video) { " +
+                                    "  // Try finding a playable position " +
+                                    "  for(var i=0; i<video.buffered.length; i++) { " +
+                                    "    var start = video.buffered.start(i); " +
+                                    "    var end = video.buffered.end(i); " +
+                                    "    if(end > video.currentTime) { " +
+                                    "      console.log('Advanced recovery: jumping to buffered segment: ' + start); " +
+                                    "      video.currentTime = start + ((end - start) * 0.1); " + // Jump to 10% into buffered segment
+                                    "      break; " +
+                                    "    } " +
+                                    "  } " +
+                                    "} " +
+                                    "})()")
+                                
+                                // Reset counter after recovery attempt
+                                consecutiveBufferingFrames = 0
+                            }
+                        }
+                    } else {
+                        // Not buffering, reset counters
+                        bufferingStartTime = currentTime
+                        consecutiveBufferingFrames = 0
+                    }
+                    
+                    // Faster interval for more responsive handling
+                    delay(300) 
                 } catch (e: Exception) {
                     Log.e("YouTubeTranslator", "Error in video playback monitor", e)
                     delay(1000) // Wait a bit longer on error
