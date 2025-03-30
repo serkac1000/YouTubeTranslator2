@@ -186,11 +186,18 @@ class MainActivity : AppCompatActivity() {
                 youtubeLinkInput.requestFocus()
             } else if (!link.contains("youtube.com") && !link.contains("youtu.be")) {
                 // Show error for invalid YouTube link
-                youtubeLinkLayout.error = "Please enter a valid YouTube link"
+                youtubeLinkLayout.error = "Please enter a valid YouTube link (youtube.com or youtu.be)"
                 youtubeLinkInput.requestFocus()
             } else {
-                // Valid link, proceed to play
-                playVideo(link)
+                // Valid link format, proceed to try to extract video ID and play
+                val videoId = extractVideoId(link)
+                if (videoId.isEmpty()) {
+                    youtubeLinkLayout.error = "Could not extract video ID from the link. Supported formats: youtube.com/watch?v=VIDEO_ID or youtu.be/VIDEO_ID"
+                    youtubeLinkInput.requestFocus()
+                } else {
+                    // Valid video ID extracted, proceed to play
+                    playVideo(link)
+                }
             }
         }
     }
@@ -198,16 +205,19 @@ class MainActivity : AppCompatActivity() {
     private fun playVideo(link: String) {
         // Extract video ID from YouTube link
         val videoId = extractVideoId(link)
+        // We've already validated the video ID in the click listener, but let's double-check
         if (videoId.isEmpty()) {
+            Log.e("YouTubeTranslator", "Empty video ID after validation. Link: $link")
             youtubeLinkLayout.error = "Could not extract video ID from link. Please check the format."
             youtubeLinkInput.requestFocus()
             return
         }
         
-        // Create a URL for the video
+        // Create a URL for the video using the extracted video ID
         // Note: This is a simplified approach and might not work for all videos
         // In a real implementation, a server-side solution would be better
         val streamUrl = "https://www.youtube.com/watch?v=$videoId"
+        Log.d("YouTubeTranslator", "Playing video with ID: $videoId")
         
         // Prepare and play the video
         val mediaItem = MediaItem.fromUri(streamUrl)
@@ -221,14 +231,48 @@ class MainActivity : AppCompatActivity() {
     }
     
     private fun extractVideoId(url: String): String {
+        Log.d("YouTubeTranslator", "Extracting video ID from URL: $url")
+        
+        // Handle youtu.be short links first
+        if (url.contains("youtu.be")) {
+            // Extract ID from youtu.be/VIDEO_ID format
+            val regex = "youtu\\.be/([^?&#]+).*".toRegex()
+            val matchResult = regex.find(url)
+            if (matchResult != null && matchResult.groupValues.size > 1) {
+                val videoId = matchResult.groupValues[1]
+                Log.d("YouTubeTranslator", "Successfully extracted video ID from youtu.be URL: $videoId")
+                return videoId
+            } else {
+                Log.e("YouTubeTranslator", "Failed to extract video ID from youtu.be URL using regex")
+            }
+        }
+        
+        // Handle standard youtube.com links
+        if (url.contains("youtube.com")) {
+            // Extract ID from v=VIDEO_ID parameter
+            val regex = "[?&]v=([^?&#]+).*".toRegex()
+            val matchResult = regex.find(url)
+            if (matchResult != null && matchResult.groupValues.size > 1) {
+                val videoId = matchResult.groupValues[1]
+                Log.d("YouTubeTranslator", "Successfully extracted video ID from youtube.com URL: $videoId")
+                return videoId
+            } else {
+                Log.e("YouTubeTranslator", "Failed to extract video ID from youtube.com URL using regex")
+            }
+        }
+        
+        // If the above methods don't work, try the original pattern as fallback
         val pattern = Pattern.compile(
             "(?<=watch\\?v=|/videos/|embed\\/|youtu.be\\/|\\/v\\/|\\/e\\/|watch\\?v%3D|watch\\?feature=player_embedded&v=|%2Fvideos%2F|embed%\u200C\u200B2F|youtu.be%2F|%2Fv%2F)[^#\\&\\?\\n]*"
         )
         val matcher = pattern.matcher(url)
-        return if (matcher.find()) {
-            matcher.group()
+        if (matcher.find()) {
+            val videoId = matcher.group()
+            Log.d("YouTubeTranslator", "Extracted video ID using fallback pattern: $videoId")
+            return videoId
         } else {
-            ""
+            Log.e("YouTubeTranslator", "All extraction methods failed for URL: $url")
+            return ""
         }
     }
     
