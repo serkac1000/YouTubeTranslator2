@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.res.Configuration
 import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
@@ -70,7 +71,7 @@ class MainActivity : AppCompatActivity() {
     private var lastSubtitleText = ""
     private var subtitleDisplayActive = false
     private val recentSubtitles = mutableListOf<String>()
-    private val MAX_SUBTITLE_LINES = 2
+    private val MAX_SUBTITLE_LINES = 3
     private val PERMISSION_REQUEST_RECORD_AUDIO = 101
     
     // Keep sample phrases as fallback when speech recognition is not available
@@ -356,7 +357,7 @@ class MainActivity : AppCompatActivity() {
                 // Add this new subtitle to our recent list
                 recentSubtitles.add(translatedText)
                 
-                // Keep only the most recent subtitles (maximum 2 lines)
+                // Keep only the most recent subtitles (maximum 3 lines)
                 while (recentSubtitles.size > MAX_SUBTITLE_LINES) {
                     recentSubtitles.removeAt(0)
                 }
@@ -397,6 +398,27 @@ class MainActivity : AppCompatActivity() {
         
         // Resume speech recognition if video is playing
         if (youtubeVideoPlaying) {
+            startSubtitleGeneration()
+        }
+    }
+    
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        Log.d("YouTubeTranslator", "Configuration changed. Orientation: ${newConfig.orientation}")
+        
+        // Handle orientation changes manually to prevent activity recreation
+        // which would cause the current video playback and state to be lost
+        
+        // No need to recreate the WebView, just ensure it's properly sized for the new orientation
+        youtubeWebView?.let { webView ->
+            webView.layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+        }
+        
+        // If we have active subtitles, make sure they continue to work
+        if (youtubeVideoPlaying && !isRecognitionActive) {
             startSubtitleGeneration()
         }
     }
