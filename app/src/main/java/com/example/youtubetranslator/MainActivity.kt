@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.content.res.Configuration
 import android.os.Bundle
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
@@ -402,26 +401,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
     
-    override fun onConfigurationChanged(newConfig: Configuration) {
-        super.onConfigurationChanged(newConfig)
-        Log.d("YouTubeTranslator", "Configuration changed. Orientation: ${newConfig.orientation}")
-        
-        // Handle orientation changes manually to prevent activity recreation
-        // which would cause the current video playback and state to be lost
-        
-        // No need to recreate the WebView, just ensure it's properly sized for the new orientation
-        youtubeWebView?.let { webView ->
-            webView.layoutParams = ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            )
-        }
-        
-        // If we have active subtitles, make sure they continue to work
-        if (youtubeVideoPlaying && !isRecognitionActive) {
-            startSubtitleGeneration()
-        }
-    }
+    // Using android:screenOrientation="portrait" in the manifest
+    // so we don't need the onConfigurationChanged method anymore
     
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
         menuInflater.inflate(R.menu.main_menu, menu)
