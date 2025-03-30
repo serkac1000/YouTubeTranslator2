@@ -295,15 +295,9 @@ class MainActivity : AppCompatActivity() {
                 domStorageEnabled = true
                 databaseEnabled = true
                 
-                // Network optimizations
-                // AppCache is deprecated but still used in some devices
-                @Suppress("DEPRECATION")
-                try {
-                    setAppCacheEnabled(true)
-                    setAppCachePath(cacheDir.absolutePath)
-                } catch (e: Exception) {
-                    Log.w("YouTubeTranslator", "App cache setting not available", e)
-                }
+                // Network optimizations - using modern cache approach
+                // Note: setAppCacheEnabled/setAppCachePath have been removed from newer Android SDKs
+                // so we just rely on the CacheMode setting which is set above
                 
                 // DNS prefetch optimization
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
