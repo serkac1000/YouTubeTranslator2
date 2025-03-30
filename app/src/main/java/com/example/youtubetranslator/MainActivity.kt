@@ -63,6 +63,7 @@ class MainActivity : AppCompatActivity() {
     
     private var subtitleJob: Job? = null
     private var fallbackSubtitleJob: Job? = null
+    private var videoPlaybackMonitorJob: Job? = null
     private var youtubeVideoPlaying = false
     private var speechRecognizer: SpeechRecognizer? = null
     private var isRecognitionActive = false
@@ -250,32 +251,96 @@ class MainActivity : AppCompatActivity() {
         // Start subtitle generation immediately - don't wait for page to finish loading
         startSubtitleGeneration()
         
-        // Create a new WebView for YouTube playback
+        // Create a new WebView for YouTube playback with enhanced stability
         youtubeWebView = WebView(this).apply {
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             )
             
-            // Configure WebView settings
-            settings.javaScriptEnabled = true
-            settings.mediaPlaybackRequiresUserGesture = false
-            settings.domStorageEnabled = true
-            settings.loadsImagesAutomatically = true
-            settings.loadWithOverviewMode = true
-            settings.useWideViewPort = true
-            settings.setSupportZoom(false)
+            // Configure WebView settings for enhanced stability
+            settings.apply {
+                javaScriptEnabled = true
+                mediaPlaybackRequiresUserGesture = false
+                domStorageEnabled = true
+                loadsImagesAutomatically = true
+                loadWithOverviewMode = true
+                useWideViewPort = true
+                setSupportZoom(false)
+                
+                // Additional settings for better stability
+                cacheMode = WebSettings.LOAD_DEFAULT  // Use cache when possible for smoother playback
+                setRenderPriority(WebSettings.RenderPriority.HIGH)  // High rendering priority
+                mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW  // Allow mixed content
+                allowContentAccess = true  // Allow content access
+                
+                // Performance optimizations
+                setEnableSmoothTransition(true)
+                allowFileAccess = true
+                domStorageEnabled = true
+                databaseEnabled = true
+                
+                // Network optimizations
+                setAppCacheEnabled(true)
+                setAppCachePath(cacheDir.absolutePath)
+                
+                // DNS prefetch optimization
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    setNetworkAvailable(true)
+                }
+                
+                // Buffering enhancements
+                mediaPlaybackRequiresUserGesture = false
+            }
             
-            // Set WebView clients
+            // Set WebView clients for better handling
             webViewClient = object : WebViewClient() {
+                override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                    super.onPageStarted(view, url, favicon)
+                    Log.d("YouTubeTranslator", "WebView page loading started: $url")
+                }
+                
                 override fun onPageFinished(view: WebView?, url: String?) {
                     super.onPageFinished(view, url)
-                    Log.d("YouTubeTranslator", "WebView page loading finished")
+                    Log.d("YouTubeTranslator", "WebView page loading finished: $url")
                     youtubeVideoPlaying = true
+                    
+                    // Execute JavaScript to ensure video plays continuously
+                    view?.let {
+                        it.loadUrl("javascript:(function() { " +
+                                "var video = document.querySelector('video'); " +
+                                "if(video) { " +
+                                "  video.play(); " +
+                                "} " +
+                                "})()")
+                    }
+                    
+                    // Start playback monitoring job
+                    startVideoPlaybackMonitor(view)
+                }
+                
+                override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
+                    // Keep all navigation inside WebView
+                    url?.let { view?.loadUrl(it) }
+                    return true
+                }
+                
+                override fun onReceivedError(view: WebView?, errorCode: Int, description: String?, failingUrl: String?) {
+                    super.onReceivedError(view, errorCode, description, failingUrl)
+                    Log.e("YouTubeTranslator", "WebView error: $errorCode - $description")
+                    Toast.makeText(this@MainActivity, "Ошибка загрузки видео: $description", Toast.LENGTH_SHORT).show()
                 }
             }
             
-            webChromeClient = WebChromeClient()
+            webChromeClient = object : WebChromeClient() {
+                override fun onProgressChanged(view: WebView?, newProgress: Int) {
+                    super.onProgressChanged(view, newProgress)
+                    Log.d("YouTubeTranslator", "WebView loading progress: $newProgress%")
+                }
+            }
+            
+            // Ensure hardware acceleration is enabled
+            setLayerType(View.LAYER_TYPE_HARDWARE, null)
         }
         
         // Add the WebView to the container
@@ -283,9 +348,25 @@ class MainActivity : AppCompatActivity() {
         
         // Get the API key from settings or fallback to BuildConfig
         val youtubeApiKey = SettingsActivity.getYouTubeApiKey(this)
-        val embedUrl = "https://www.youtube.com/embed/$videoId?enablejsapi=1&key=$youtubeApiKey&autoplay=1&rel=0&showinfo=0"
         
-        // Load the YouTube embed URL
+        // Enhanced embed URL with additional parameters for stability and buffering
+        val embedUrl = "https://www.youtube.com/embed/$videoId?" +
+                "enablejsapi=1" +
+                "&key=$youtubeApiKey" +
+                "&autoplay=1" +
+                "&rel=0" +
+                "&showinfo=0" +
+                "&controls=1" +  // Show video controls
+                "&fs=1" +        // Enable fullscreen option
+                "&modestbranding=1" +  // Hide YouTube logo
+                "&iv_load_policy=3" +  // Hide video annotations
+                "&hl=ru" +       // Russian language interface
+                "&playsinline=1" +  // Play inline on devices
+                "&html5=1" +     // Force HTML5 player
+                "&vq=medium" +   // Set initial quality to medium for better buffering
+                "&origin=${Uri.encode(this.packageName)}" // Identify app as origin
+        
+        // Load the YouTube embed URL with enhanced parameters
         youtubeWebView?.loadUrl(embedUrl)
         
         Log.d("YouTubeTranslator", "Loading YouTube video in WebView with URL: $embedUrl")
@@ -394,6 +475,24 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         // Resume the YouTube video when the app comes to the foreground
         youtubeWebView?.onResume()
+        
+        // Inject JavaScript to ensure video playback continues
+        youtubeWebView?.let { webView ->
+            if (youtubeVideoPlaying) {
+                try {
+                    // Use JavaScript to force video play and prevent pausing
+                    webView.loadUrl("javascript:(function() { " +
+                            "var video = document.querySelector('video'); " +
+                            "if(video) { " +
+                            "  video.play(); " +
+                            "  video.onpause = function() { video.play(); }; " +
+                            "} " +
+                            "})()")
+                } catch (e: Exception) {
+                    Log.e("YouTubeTranslator", "Error injecting JavaScript", e)
+                }
+            }
+        }
         
         // Resume speech recognition if video is playing
         if (youtubeVideoPlaying) {
@@ -703,10 +802,68 @@ class MainActivity : AppCompatActivity() {
         fallbackSubtitleJob?.cancel()
         fallbackSubtitleJob = null
         
+        // Stop video monitoring
+        videoPlaybackMonitorJob?.cancel()
+        videoPlaybackMonitorJob = null
+        
         // Clear subtitle display
         subtitlesView.text = ""
         subtitleDisplayActive = false
         lastSubtitleText = ""
         recentSubtitles.clear()
+    }
+    
+    /**
+     * This function monitors video playback and ensures it continues without stopping.
+     * It injects JavaScript periodically to check video playback state and restart if needed.
+     */
+    private fun startVideoPlaybackMonitor(webView: WebView?) {
+        // Cancel any existing video monitor
+        videoPlaybackMonitorJob?.cancel()
+        
+        if (webView == null) {
+            Log.e("YouTubeTranslator", "Cannot start video playback monitor: WebView is null")
+            return
+        }
+        
+        // Start a coroutine to periodically check and enforce video playback
+        videoPlaybackMonitorJob = CoroutineScope(Dispatchers.Main).launch {
+            while (isActive && youtubeVideoPlaying) {
+                try {
+                    // Check video state and restart if needed every 1 second
+                    webView.loadUrl("javascript:(function() { " +
+                        "var video = document.querySelector('video'); " +
+                        "if(video) { " +
+                        "  if(video.paused) { " +
+                        "    console.log('Video was paused - restarting playback'); " +
+                        "    video.play(); " +
+                        "  } " +
+                        "  video.onpause = function() { " +
+                        "    console.log('Pause event detected - forcing play'); " +
+                        "    video.play(); " +
+                        "  }; " +
+                        "  video.playbackRate = 1.0; " +  // Ensure normal playback speed
+                        "  video.autoplay = true; " +     // Ensure autoplay is enabled
+                        "  if (video.readyState < 4) { " + // If video is buffering (not enough data)
+                        "    console.log('Video buffering detected - adjusting'); " +
+                        "    video.currentTime -= 0.5; " + // Back up slightly to help buffering
+                        "  } " +
+                        "} else { " +
+                        "  console.log('Video element not found'); " +
+                        "} " +
+                        "})()")
+                    
+                    // Shorter delay for more responsive checking (2 times per second)
+                    delay(500)
+                } catch (e: Exception) {
+                    Log.e("YouTubeTranslator", "Error in video playback monitor", e)
+                    delay(1000) // Wait a bit longer on error
+                }
+            }
+            
+            Log.d("YouTubeTranslator", "Video playback monitor stopped")
+        }
+        
+        Log.d("YouTubeTranslator", "Video playback monitor started")
     }
 }
