@@ -209,11 +209,23 @@ class MainActivity : AppCompatActivity() {
         
         Log.d("YouTubeTranslator", "Playing YouTube video with ID: $videoId")
         
-        // Display a loading message
-        subtitlesView.text = getString(R.string.loading_video)
+        // Stop any existing subtitle generation
+        stopSubtitleGeneration()
+        
+        // Display a loading message in Russian
+        translator.translate("Loading video...")
+            .addOnSuccessListener { translatedText ->
+                subtitlesView.text = translatedText
+            }
+            .addOnFailureListener { 
+                subtitlesView.text = "Загрузка видео..." // Russian for "Loading video..."
+            }
         
         // Remove any existing WebView
         youtubePlayerContainer.removeAllViews()
+        
+        // Start subtitle generation immediately - don't wait for page to finish loading
+        startSubtitleGeneration()
         
         // Create a new WebView for YouTube playback
         youtubeWebView = WebView(this).apply {
@@ -237,7 +249,6 @@ class MainActivity : AppCompatActivity() {
                     super.onPageFinished(view, url)
                     Log.d("YouTubeTranslator", "WebView page loading finished")
                     youtubeVideoPlaying = true
-                    startSubtitleGeneration()
                 }
             }
             
@@ -255,9 +266,6 @@ class MainActivity : AppCompatActivity() {
         youtubeWebView?.loadUrl(embedUrl)
         
         Log.d("YouTubeTranslator", "Loading YouTube video in WebView with URL: $embedUrl")
-        
-        // Reset subtitles
-        stopSubtitleGeneration()
     }
     
     private fun extractVideoId(url: String): String {
@@ -310,17 +318,19 @@ class MainActivity : AppCompatActivity() {
         // Cancel any existing subtitle job
         subtitleJob?.cancel()
         
+        // Show first subtitle immediately
+        translateAndDisplaySubtitle(sampleEnglishPhrases[0])
+        
         // Start a new subtitle generation job
         subtitleJob = CoroutineScope(Dispatchers.Main).launch {
-            var index = 0
+            var index = 1 // Start from second phrase since we've already shown the first one
             
             // Keep generating subtitles whether the player is playing or not
-            // This is for demonstration purposes since we can't directly play YouTube videos
             while (isActive) {  // isActive is a property from coroutine context
                 val englishText = sampleEnglishPhrases[index % sampleEnglishPhrases.size]
                 translateAndDisplaySubtitle(englishText)
                 index++
-                delay(5000) // Update subtitles every 5 seconds
+                delay(3000) // Show new subtitles every 3 seconds for better experience
             }
         }
         
@@ -336,11 +346,13 @@ class MainActivity : AppCompatActivity() {
     private fun translateAndDisplaySubtitle(englishText: String) {
         translator.translate(englishText)
             .addOnSuccessListener { translatedText ->
-                subtitlesView.text = "$englishText\n$translatedText"
+                // Show only Russian subtitles
+                subtitlesView.text = translatedText
             }
             .addOnFailureListener { exception ->
                 Log.e("YouTubeTranslator", "Translation failed", exception)
-                subtitlesView.text = englishText
+                // If translation fails, still try to show something in Russian
+                subtitlesView.text = "Ошибка перевода" // "Translation error" in Russian
             }
     }
     
