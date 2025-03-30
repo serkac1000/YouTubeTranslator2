@@ -40,7 +40,6 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.regex.Pattern
 import kotlinx.coroutines.withContext
-import java.util.regex.Pattern
 
 class MainActivity : AppCompatActivity() {
 
